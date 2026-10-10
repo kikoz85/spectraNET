@@ -1,0 +1,172 @@
+# spectraNET — services by kind of traffic.
+#
+# One line per domain: the kind, then a domain. A host matches its domain and every
+# subdomain (googlevideo.com matches rr3---sn-x.googlevideo.com). Kinds: video, audio,
+# call, web, download, upload, game, raw_iq, radio_audio, digital_modes, telemetry, websdr.
+# Lines starting with # are comments.
+#
+# This file is built into spectraNET and refreshed by snetd from the project's repository;
+# a copy in the service's feeds directory (categories.txt) replaces the built-in one.
+
+# Video streaming
+video googlevideo.com
+video youtube-nocookie.com
+video nflxvideo.net
+video nflxso.net
+video ttvnw.net
+video jtvnw.net
+video vimeocdn.com
+video dssott.com
+video bamgrid.com
+video aiv-cdn.net
+video aiv-delivery.net
+video pv-cdn.net
+video hbomaxcdn.com
+video primevideo.com
+video tiktokcdn.com
+video tiktokv.com
+video byteoversea.com
+video dailymotion.com
+video dmcdn.net
+video raiplay.it
+video mediasetplay.mediaset.it
+video plutotv.net
+video vrv.co
+video apple.tv
+video hls.ted.com
+video kick.com
+video live-video.net
+video peer5.com
+
+# Music, radio, podcasts
+audio scdn.co
+audio spotifycdn.com
+audio audio-ak-spotify-com.akamaized.net
+audio audio4-ak-spotify-com.akamaized.net
+audio dzcdn.net
+audio sndcdn.com
+audio tidal.com
+audio aod.itunes.apple.com
+audio streamingaudio.itunes.apple.com
+audio p-cdn.us
+audio radiotime.com
+audio tunein.com
+audio streamtheworld.com
+audio icecast.org
+audio audible.com
+audio podtrac.com
+audio megaphone.fm
+audio anchor.fm
+
+# Voice and video calls, conferences
+call zoom.us
+call zoom.com
+call zoomgov.com
+call teams.microsoft.com
+call skype.com
+call teams.live.com
+call webex.com
+call wbx2.com
+call meet.google.com
+call discord.media
+call whatsapp.net
+call facetime.apple.com
+call jitsi.net
+call meet.jit.si
+call gotomeeting.com
+call ringcentral.com
+
+# Large downloads and software updates
+download swcdn.apple.com
+download swdist.apple.com
+download updates.cdn-apple.com
+download mesu.apple.com
+download osxapps.itunes.apple.com
+download download.windowsupdate.com
+download dl.delivery.mp.microsoft.com
+download delivery.mp.microsoft.com
+download windowsupdate.com
+download steamcontent.com
+download steamserver.net
+download epicgames-download1.akamaized.net
+download download.epicgames.com
+download blzddist1-a.akamaihd.net
+download origin-a.akamaihd.net
+download deb.debian.org
+download security.debian.org
+download archive.ubuntu.com
+download security.ubuntu.com
+download dl.fedoraproject.org
+download mirrors.kernel.org
+download objects.githubusercontent.com
+download release-assets.githubusercontent.com
+download codeload.github.com
+download dl.google.com
+download edgedl.me.gvt1.com
+download download.mozilla.org
+download static.rust-lang.org
+download registry.npmjs.org
+download files.pythonhosted.org
+download ghcr.io
+download docker.io
+download production.cloudflare.docker.com
+
+# Backup, sync, uploads
+upload icloud-content.com
+upload backup.icloud.com
+upload dropboxusercontent.com
+upload onedrive.live.com
+upload storage.live.com
+upload drive.google.com
+upload backblazeb2.com
+upload box.com
+upload mega.nz
+upload pcloud.com
+
+# Online games
+game playstation.net
+game xboxlive.com
+game riotgames.com
+game leagueoflegends.com
+game battle.net
+game epicgames.dev
+game fortnite.com
+game roblox.com
+game rbxcdn.com
+game minecraft.net
+game mojang.com
+game valve.net
+game nintendo.net
+
+# Satellites, telemetry and orbit data
+telemetry satnogs.org
+telemetry db.satnogs.org
+telemetry network.satnogs.org
+telemetry celestrak.org
+telemetry celestrak.com
+telemetry space-track.org
+telemetry n2yo.com
+telemetry adsbexchange.com
+telemetry flightaware.com
+telemetry opensky-network.org
+telemetry adsb.fi
+telemetry adsb.lol
+
+# Digital radio modes and spotting networks
+digital_modes pskreporter.info
+digital_modes report.pskreporter.info
+digital_modes aprs2.net
+digital_modes aprs.fi
+digital_modes reversebeacon.net
+digital_modes hamqth.com
+digital_modes qrz.com
+digital_modes lotw.arrl.org
+digital_modes clublog.org
+
+# Web receivers
+websdr websdr.org
+websdr websdr.ewi.utwente.nl
+websdr kiwisdr.com
+websdr proxy.kiwisdr.com
+websdr receiverbook.de
+websdr sdr.hu

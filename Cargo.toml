@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/spectranet-model",
+    "crates/spectranet-capture",
+    "crates/spectranet-intel",
+    "crates/spectranet-proto",
+    "crates/spectranet-daemon",
+    "crates/spectranet-cli",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.88"
+authors = ["kikoz85"]
+repository = "https://github.com/kikoz85/spectraNET"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+spectranet-model = { path = "crates/spectranet-model" }
+spectranet-capture = { path = "crates/spectranet-capture" }
+spectranet-proto = { path = "crates/spectranet-proto" }
+spectranet-intel = { path = "crates/spectranet-intel" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

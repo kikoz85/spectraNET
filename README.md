@@ -32,8 +32,27 @@ program on the computer and presents it three ways:
 Everything is measured locally. spectraNET never decrypts or uploads your traffic; the only
 things it downloads are public threat-intelligence lists.
 
+### Version 1.0
+
+spectraNET 1.0 is the first **stable** release. After seven releases in which every part was
+built and tried on macOS, Linux and Windows, we consider it **complete and ready to be
+distributed**:
+
+- **Complete**: the desktop app, the `snet` command line and the `snetd` service cover the whole
+  journey — seeing who uses the network, understanding what kind of traffic it is (video, calls,
+  downloads, radio and satellites…), raising alerts, keeping history, and acting (pause, end,
+  block).
+- **Stable**: the same features on the three systems, checked on each one; the service's
+  protocol and settings (`snetd.conf`) are now fixed, and from 1.0 on changes follow
+  [semantic versioning](https://semver.org/): nothing that works today breaks in a 1.x release.
+- **Ready to distribute**: installers for every system, the app installs and updates itself and
+  its service, Options for every setting, five languages (English, Italian, French, German,
+  Spanish), and the command line and service are **open source** (MIT OR Apache-2.0) so anyone
+  can read, build and package them.
+
 ### Contents
 
+- [Version 1.0](#version-10)
 - [The city](#the-city)
 - [2D map](#2d-map)
 - [Network interfaces](#network-interfaces)
@@ -47,9 +66,13 @@ things it downloads are public threat-intelligence lists.
 - [Languages](#languages)
 - [Runs everywhere](#runs-everywhere)
 - [Install](#install)
+- [Options](#options)
 - [Updates and support](#updates-and-support)
 - [Command line: snet](#command-line-snet)
 - [How it works](#how-it-works)
+- [Building from source](#building-from-source)
+- [Project layout](#project-layout)
+- [License](#license)
 
 ### The city
 
@@ -169,7 +192,7 @@ and APIs, a download, an upload or a game** — without decrypting anything and 
 the content. It looks at:
 
 - the **host**: a list of known services (video platforms, music, call services, update
-  servers…), built in and refreshed by snetd;
+  servers…), built in and refreshed by snetd ([data/categories.txt](data/categories.txt));
 - the **pattern** over the last half minute: video downloads in regular bursts as the player
   fills its buffer, calls and games send small packets at a steady pace both ways, web pages
   are short exchanges, downloads and backups are sustained transfers;
@@ -266,7 +289,8 @@ the guide or the language menu.
 ### Languages
 
 The interface follows the system language and switches instantly from the language menu
-(top right). English and Italian are included.
+(top right) or *Options → General*. English, Italian, French, German and Spanish are included,
+the guide and the introduction too.
 
 ![Italian interface](docs/screenshots/inspector-it.png)
 
@@ -329,6 +353,29 @@ A portable `spectranet-<version>-windows-x86_64.zip` is also available
 Without the service the app still works: it measures traffic itself (*Live · direct*), with
 fewer hostnames and no history or alerts. To just look around: `spectranet --demo`.
 
+### Options
+
+The gear at the top right (or <kbd>⌘</kbd> <kbd>,</kbd> / <kbd>Ctrl</kbd> <kbd>,</kbd>) opens
+**Options**, every setting in one place:
+
+| Section | What it holds |
+|---|---|
+| **General** | language, open spectraNET when you log in, the view shown at start, the introduction |
+| **City & graphics** | legend, rotation, graphics quality (*High*, *Balanced*, *Power saving* for laptops on battery and remote desktops), the system's own services, hiding apps without traffic |
+| **Units & data** | speeds in bytes (MB/s) or bits (Mbit/s), the network interface, the Flight Recorder folder |
+| **Notifications** | desktop notifications for alerts, warnings and apps connecting for the first time |
+| **Updates** | automatic checks, updating the service by itself |
+| **snetd service** | status, who may act on apps, threat lists, history kept, Prometheus metrics, reinstall or remove |
+| **Advanced** | data folders, restore default settings |
+
+![Options: city and graphics](docs/screenshots/options.png)
+
+The service's settings are applied together (one administrator prompt; the service restarts).
+From a terminal they are `snetd config show` and `sudo snetd config set KEY=VALUE…`, e.g.
+`sudo snetd config set history_days=90 feeds_disabled=tor-exits`.
+
+![Options: the snetd service](docs/screenshots/options-service.png)
+
 ### Updates and support
 
 spectraNET checks the releases now and then. When a new version is out, a bar under the top bar
@@ -370,10 +417,20 @@ snet analyze snet-record-*.jsonl         # destinations, beaconing, heavy upload
 Every command is documented in its man page: `man snet`, `man snet-list`, `man snetd`,
 `man spectranet`… Shell completions: `snet generate completions <bash|zsh|fish|powershell|elvish>`.
 
+![snet top: graphs, sortable table, details](docs/screenshots/cli-top.png)
+
+![snet top → f: the Flow Inspector](docs/screenshots/cli-flows.png)
+
+![snet list -c: applications with their connections](docs/screenshots/cli-list.png)
+
+![snet inspect: the network profile of an application](docs/screenshots/cli-inspect.png)
+
+![snet stream: what each connection carries, as it is recognised](docs/screenshots/cli-stream.png)
+
 ### Prometheus metrics
 
 Off by default. To let Prometheus (or Grafana Agent, VictoriaMetrics…) collect per-application
-traffic, CPU and memory, add to `snetd.conf` in the data directory
+traffic, CPU and memory, turn them on in *Options → snetd service*, or add to `snetd.conf` in the data directory
 (`/Library/Application Support/spectraNET` on macOS, `/var/lib/spectranet` on Linux,
 `%ProgramData%\spectraNET` on Windows) and restart the service:
 
@@ -413,6 +470,63 @@ The desktop app uses its own 3D renderer (Metal on macOS,
 DirectX 12 on Windows, Vulkan or OpenGL on Linux): HDR rendering with multisampling, bloom and
 ACES tone mapping, about 2 ms per frame on an Apple M1 Max.
 
+### Building from source
+
+The command-line tool `snet`, the service `snetd` and the libraries they use are open source and
+live in this repository. The desktop app (`spectranet`) is distributed as ready-made packages
+only, on the [Releases](https://github.com/kikoz85/spectraNET/releases) page.
+
+**Requirements**: [Rust](https://rustup.rs) 1.88 or later, and:
+
+| System | Also needed |
+|---|---|
+| **macOS** 11+ | Xcode Command Line Tools: `xcode-select --install` (libpcap is part of macOS) |
+| **Linux** (kernel 5.8+ with BTF) | `clang` (compiles the eBPF probe) and libpcap headers — Debian/Ubuntu: `sudo apt install build-essential clang libpcap-dev`; Fedora: `sudo dnf install clang libpcap-devel`; Arch: `sudo pacman -S base-devel clang libpcap` |
+| **Windows** 10/11 | Visual Studio Build Tools with *Desktop development with C++*, and the MSVC Rust toolchain (`rustup default stable-msvc`) |
+
+**Build and test**:
+
+```sh
+git clone https://github.com/kikoz85/spectraNET.git
+cd spectraNET
+cargo build --release          # target/release/snet and snetd (snet.exe, snetd.exe on Windows)
+cargo test                     # the whole test suite
+./target/release/snet --mock top   # try it with simulated traffic, no privileges needed
+```
+
+**Install the service** (it also installs `snet` and the man pages):
+
+```sh
+sudo ./target/release/snetd install          # macOS and Linux
+```
+
+```powershell
+.\target\release\snetd.exe install           # Windows, from an administrator PowerShell
+```
+
+`snetd uninstall` removes it again (`--purge` also deletes the history). Shell completions:
+`snet generate completions <bash|zsh|fish|powershell|elvish>`; man pages: `snet generate man DIR`.
+
+### Project layout
+
+| Path | Contents |
+|---|---|
+| `crates/spectranet-model` | Data types shared by every component (snapshot, process, flow) |
+| `crates/spectranet-capture` | Traffic sources: macOS (NetworkStatistics), Linux (eBPF), Windows (ETW), name discovery, simulator |
+| `crates/spectranet-intel` | Traffic classification, security rules, reputation lists, Flight Recorder analysis |
+| `crates/spectranet-proto` | Protocol between clients and `snetd` (JSON lines over a socket or named pipe) |
+| `crates/spectranet-daemon` | `snetd`: continuous sampling, history, alerts, actions, service installation |
+| `crates/spectranet-cli` | `snet`: commands, full-screen `top`, man pages, completions |
+| `ebpf/` | The Linux kernel probes (GPL-2.0) |
+| `data/` | The list of known services, refreshed by `snetd` from this repository |
+
+### License
+
+`snet`, `snetd` and their libraries are licensed under either of [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE), at your option. The eBPF programs in `ebpf/` are GPL-2.0, as the
+Linux kernel requires. The desktop app is free to download and use, but its source is not
+published.
+
 ---
 
 <a id="italiano"></a>
@@ -431,8 +545,28 @@ del computer e la presenta in tre modi:
 Tutto viene misurato in locale. spectraNET non decifra né invia mai il tuo traffico; le uniche
 cose che scarica sono le liste pubbliche di threat intelligence.
 
+### Versione 1.0
+
+spectraNET 1.0 è la prima versione **stabile**. Dopo sette versioni in cui ogni parte è stata
+costruita e provata su macOS, Linux e Windows, la riteniamo **completa e pronta per essere
+distribuita**:
+
+- **Completa**: l'app desktop, la riga di comando `snet` e il servizio `snetd` coprono tutto il
+  percorso — vedere chi usa la rete, capire che tipo di traffico è (video, chiamate, download,
+  radio e satelliti…), generare allarmi, conservare la cronologia e agire (pausa, termina,
+  blocca).
+- **Stabile**: le stesse funzioni sui tre sistemi, verificate su ognuno; il protocollo e le
+  impostazioni del servizio (`snetd.conf`) sono ora definitivi e da qui in poi i cambiamenti
+  seguono il [versionamento semantico](https://semver.org/lang/it/): niente di ciò che funziona
+  oggi si rompe in una versione 1.x.
+- **Pronta da distribuire**: installer per ogni sistema, l'app si installa e si aggiorna da sola
+  insieme al suo servizio, le Opzioni per ogni impostazione, cinque lingue (inglese, italiano,
+  francese, tedesco, spagnolo), e la riga di comando e il servizio sono **open source** (MIT OR
+  Apache-2.0), così chiunque può leggerli, compilarli e pacchettizzarli.
+
 ### Indice
 
+- [Versione 1.0](#versione-10)
 - [La città](#la-città)
 - [Mappa 2D](#mappa-2d)
 - [Interfacce di rete](#interfacce-di-rete)
@@ -446,9 +580,13 @@ cose che scarica sono le liste pubbliche di threat intelligence.
 - [Lingue](#lingue)
 - [Su ogni sistema](#su-ogni-sistema)
 - [Installazione](#installazione)
+- [Opzioni](#opzioni)
 - [Aggiornamenti e sostegno](#aggiornamenti-e-sostegno)
 - [Riga di comando: snet](#riga-di-comando-snet)
 - [Come funziona](#come-funziona)
+- [Compilare dai sorgenti](#compilare-dai-sorgenti)
+- [Struttura del progetto](#struttura-del-progetto)
+- [Licenza](#licenza)
 
 ### La città
 
@@ -567,7 +705,8 @@ chiamata, pagine web e API, un download, un caricamento o un gioco** — senza d
 senza leggere il contenuto. Guarda:
 
 - l'**host**: un elenco di servizi noti (piattaforme video, musica, servizi di chiamata,
-  server di aggiornamento…), integrato e aggiornato da snetd;
+  server di aggiornamento…), integrato e aggiornato da snetd
+  ([data/categories.txt](data/categories.txt));
 - il **ritmo** dell'ultimo mezzo minuto: il video scarica a raffiche regolari mentre il lettore
   riempie il buffer, chiamate e giochi mandano pacchetti piccoli a cadenza costante nei due
   sensi, le pagine web sono scambi brevi, download e backup sono trasferimenti continui;
@@ -653,7 +792,8 @@ si può rivedere dalla guida o dal menu della lingua.
 ### Lingue
 
 L'interfaccia segue la lingua del sistema e si cambia all'istante dal menu della lingua (in
-alto a destra). Sono inclusi inglese e italiano.
+alto a destra) o da *Opzioni → Generali*. Sono inclusi inglese, italiano, francese, tedesco e
+spagnolo, compresi la guida e l'introduzione.
 
 ### Su ogni sistema
 
@@ -715,6 +855,29 @@ Senza il servizio l'app funziona comunque: misura il traffico da sola (*In diret
 diretta*), con meno nomi e senza cronologia né allarmi. Per dare solo un'occhiata:
 `spectranet --demo`.
 
+### Opzioni
+
+L'ingranaggio in alto a destra (o <kbd>⌘</kbd> <kbd>,</kbd> / <kbd>Ctrl</kbd> <kbd>,</kbd>) apre
+le **Opzioni**, tutte le impostazioni in un posto solo:
+
+| Sezione | Cosa contiene |
+|---|---|
+| **Generali** | lingua, apertura di spectraNET all'accesso, vista all'avvio, introduzione |
+| **Città e grafica** | legenda, rotazione, qualità grafica (*Alta*, *Bilanciata*, *Risparmio energetico* per portatili a batteria e desktop remoti), servizi del sistema, app senza traffico nascoste |
+| **Unità e dati** | velocità in byte (MB/s) o bit (Mbit/s), interfaccia di rete, cartella del Flight Recorder |
+| **Notifiche** | notifiche sul desktop per allarmi, avvisi e app che si collegano per la prima volta |
+| **Aggiornamenti** | controlli automatici, aggiornamento automatico del servizio |
+| **Servizio snetd** | stato, chi può agire sulle app, liste di minacce, cronologia conservata, metriche Prometheus, reinstalla o rimuovi |
+| **Avanzate** | cartelle dei dati, ripristino delle impostazioni predefinite |
+
+![Opzioni: città e grafica](docs/screenshots/options.png)
+
+Le impostazioni del servizio si applicano insieme (una sola richiesta di password; il servizio si
+riavvia). Dal terminale: `snetd config show` e `sudo snetd config set CHIAVE=VALORE…`, ad esempio
+`sudo snetd config set history_days=90 feeds_disabled=tor-exits`.
+
+![Opzioni: il servizio snetd](docs/screenshots/options-service.png)
+
 ### Aggiornamenti e sostegno
 
 spectraNET controlla le release di tanto in tanto. Quando esce una nuova versione, una barra
@@ -754,10 +917,20 @@ snet analyze snet-record-*.jsonl         # destinazioni, beaconing, upload pesan
 Ogni comando è documentato nella sua pagina man: `man snet`, `man snet-list`, `man snetd`,
 `man spectranet`…
 
+![snet top: grafici, tabella ordinabile, dettagli](docs/screenshots/cli-top.png)
+
+![snet top → f: il Flow Inspector](docs/screenshots/cli-flows.png)
+
+![snet list -c: le applicazioni con le loro connessioni](docs/screenshots/cli-list.png)
+
+![snet inspect: il profilo di rete di un'applicazione](docs/screenshots/cli-inspect.png)
+
+![snet stream: che cosa trasporta ogni connessione, man mano che viene riconosciuta](docs/screenshots/cli-stream.png)
+
 ### Metriche Prometheus
 
 Disattivate per impostazione predefinita. Per far raccogliere a Prometheus (o Grafana Agent,
-VictoriaMetrics…) traffico, CPU e memoria di ogni applicazione, aggiungi a `snetd.conf` nella
+VictoriaMetrics…) traffico, CPU e memoria di ogni applicazione, attivale in *Opzioni → Servizio snetd*, oppure aggiungi a `snetd.conf` nella
 cartella dei dati (`/Library/Application Support/spectraNET` su macOS, `/var/lib/spectranet`
 su Linux, `%ProgramData%\spectraNET` su Windows) e riavvia il servizio:
 
@@ -785,6 +958,64 @@ Le ricerche inverse dei nomi (mDNS, NetBIOS, il DNS del gateway) vengono fatte s
 indirizzi della rete locale. L'app desktop usa un proprio
 renderer 3D (Metal su macOS, DirectX 12 su Windows, Vulkan o OpenGL su Linux).
 
+### Compilare dai sorgenti
+
+Lo strumento da riga di comando `snet`, il servizio `snetd` e le librerie che usano sono open
+source e si trovano in questo repository. L'app desktop (`spectranet`) è distribuita solo come
+pacchetti pronti, nella pagina [Releases](https://github.com/kikoz85/spectraNET/releases).
+
+**Requisiti**: [Rust](https://rustup.rs) 1.88 o successivo, e:
+
+| Sistema | Serve anche |
+|---|---|
+| **macOS** 11+ | Xcode Command Line Tools: `xcode-select --install` (libpcap fa parte di macOS) |
+| **Linux** (kernel 5.8+ con BTF) | `clang` (compila la sonda eBPF) e gli header di libpcap — Debian/Ubuntu: `sudo apt install build-essential clang libpcap-dev`; Fedora: `sudo dnf install clang libpcap-devel`; Arch: `sudo pacman -S base-devel clang libpcap` |
+| **Windows** 10/11 | Visual Studio Build Tools con *Sviluppo di applicazioni desktop con C++* e la toolchain Rust MSVC (`rustup default stable-msvc`) |
+
+**Compilare e provare**:
+
+```sh
+git clone https://github.com/kikoz85/spectraNET.git
+cd spectraNET
+cargo build --release          # target/release/snet e snetd (snet.exe, snetd.exe su Windows)
+cargo test                     # tutti i test
+./target/release/snet --mock top   # prova con traffico simulato, senza privilegi
+```
+
+**Installare il servizio** (installa anche `snet` e le pagine man):
+
+```sh
+sudo ./target/release/snetd install          # macOS e Linux
+```
+
+```powershell
+.\target\release\snetd.exe install           # Windows, da un PowerShell amministratore
+```
+
+`snetd uninstall` lo rimuove (`--purge` cancella anche la cronologia). Completamento della shell:
+`snet generate completions <bash|zsh|fish|powershell|elvish>`; pagine man: `snet generate man DIR`.
+
+### Struttura del progetto
+
+| Percorso | Contenuto |
+|---|---|
+| `crates/spectranet-model` | Tipi di dati condivisi da tutti i componenti (istantanea, processo, flusso) |
+| `crates/spectranet-capture` | Sorgenti del traffico: macOS (NetworkStatistics), Linux (eBPF), Windows (ETW), scoperta dei nomi, simulatore |
+| `crates/spectranet-intel` | Classificazione del traffico, regole di sicurezza, liste di reputazione, analisi del Flight Recorder |
+| `crates/spectranet-proto` | Protocollo tra i client e `snetd` (righe JSON su socket o named pipe) |
+| `crates/spectranet-daemon` | `snetd`: misura continua, cronologia, allarmi, azioni, installazione del servizio |
+| `crates/spectranet-cli` | `snet`: comandi, `top` a schermo intero, pagine man, completamento |
+| `ebpf/` | Le sonde del kernel Linux (GPL-2.0) |
+| `data/` | L'elenco dei servizi noti, aggiornato da `snetd` da questo repository |
+
+### Licenza
+
+`snet`, `snetd` e le loro librerie sono distribuiti con licenza [MIT](LICENSE-MIT) oppure
+[Apache-2.0](LICENSE-APACHE), a tua scelta. I programmi eBPF in `ebpf/` sono GPL-2.0, come
+richiede il kernel Linux. L'app desktop si scarica e si usa gratuitamente, ma il suo codice
+sorgente non è pubblicato.
+
 ---
 
-<sub>Fonts: Inter and JetBrains Mono (SIL Open Font License). Icons: Phosphor (MIT).</sub>
+<sub>Fonts: Inter and JetBrains Mono (SIL Open Font License). Icons: Phosphor (MIT).
+The eBPF probe in `ebpf/` is GPL-2.0, as required by the kernel.</sub>

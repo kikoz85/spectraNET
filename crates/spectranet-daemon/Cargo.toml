@@ -1,0 +1,46 @@
+[package]
+name = "spectranet-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+
+description = "spectraNET background service (snetd)"
+
+[[bin]]
+name = "snetd"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+spectranet-proto.workspace = true
+spectranet-capture.workspace = true
+spectranet-model.workspace = true
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive", "wrap_help"] }
+clap_mangen = "0.3.3"
+jiff = "0.2.38"
+libc = "0.2.190"
+plist = "1.10.1"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde_json = "1.0.151"
+signal-hook = "0.4.5"
+spectranet-intel.workspace = true
+toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+netdev = { version = "0.46", default-features = false, features = ["gateway"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.8.1"
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Pipes", "Win32_System_IO", "Win32_System_RemoteDesktop", "Win32_System_Threading"] }
