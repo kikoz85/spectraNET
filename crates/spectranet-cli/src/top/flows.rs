@@ -1,5 +1,7 @@
-//! The Flow Inspector (`f`): every connection of the selected application with what kind of
-//! traffic it carries and why, its handshake, and live waves of bandwidth and packets.
+//! The Flow Inspector (`f`): where the selected application connects — one row per host, all
+//! its connections to that host together (a browser opens several per site, FTP one per file)
+//! — with what kind of traffic it is and why, its handshake, and live waves of bandwidth and
+//! packets.
 //!
 //! Nothing here comes from the content of the communication: rates, packet counts, the
 //! host name and the handshake fields sent in clear.
@@ -9,22 +11,100 @@ use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
-use spectranet_model::{Flow, Transport};
+use spectranet_intel::conversation;
+use spectranet_model::{AppTraffic, Flow, Transport};
 
 use super::state::{FlowSample, TopState};
 use super::ui::{ACCENT, DIM, DOWN, UP, service};
 use crate::flowtext::{certainty_word, kind_style, kind_word, packet_size, protocol, reason_text};
-use crate::units::{rate, truncate_left};
-use crate::view::{connection_rows, endpoint};
+use crate::units::{bytes, rate, truncate_left};
 
 /// Unicode blocks for the waves, from empty to full.
 const BLOCKS: [char; 9] = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+/// One destination of the application: every connection to that host together.
+pub(crate) struct HostRow {
+    pub ip: std::net::IpAddr,
+    /// (owning pid, connection)
+    pub flows: Vec<(u32, Flow)>,
+    pub combined: Flow,
+    /// Bytes exchanged over the last minute.
+    pub recent: u64,
+}
+
+/// The application's destinations, busiest over the last minute first (then by data
+/// exchanged). Sockets without a remote end (listeners, local discovery) are left out.
+pub(crate) fn host_rows(app: &AppTraffic, state: &TopState) -> Vec<HostRow> {
+    let mut groups: Vec<(std::net::IpAddr, Vec<(u32, Flow)>)> = Vec::new();
+    for p in &app.processes {
+        for f in p.flows.iter().filter(|f| !f.remote.ip().is_unspecified()) {
+            let ip = f.remote.ip();
+            match groups.iter_mut().find(|g| g.0 == ip) {
+                Some(g) => g.1.push((p.process.pid, f.clone())),
+                None => groups.push((ip, vec![(p.process.pid, f.clone())])),
+            }
+        }
+    }
+    let mut rows: Vec<HostRow> = groups
+        .into_iter()
+        .filter_map(|(ip, flows)| {
+            let combined = conversation::combine(flows.iter().map(|(_, f)| f))?;
+            let recent = host_series(app, ip, state)
+                .iter()
+                .map(|s| s.rx + s.tx)
+                .sum();
+            Some(HostRow {
+                ip,
+                flows,
+                combined,
+                recent,
+            })
+        })
+        .collect();
+    rows.sort_by_key(|r| {
+        std::cmp::Reverse(conversation::interest(
+            r.recent,
+            r.combined.rx_bytes + r.combined.tx_bytes,
+        ))
+    });
+    rows
+}
+
+/// The last minute of the application's traffic with `ip`, all its processes together.
+fn host_series(app: &AppTraffic, ip: std::net::IpAddr, state: &TopState) -> Vec<FlowSample> {
+    let mut sum: Vec<FlowSample> = Vec::new();
+    for p in &app.processes {
+        let Some(h) = state.host_history.get(&(p.process.pid, ip)) else {
+            continue;
+        };
+        // Align on the newest sample.
+        if h.samples.len() > sum.len() {
+            let missing = h.samples.len() - sum.len();
+            sum.splice(0..0, std::iter::repeat_n(FlowSample::default(), missing));
+        }
+        let offset = sum.len() - h.samples.len();
+        for (i, s) in h.samples.iter().enumerate() {
+            let t = &mut sum[offset + i];
+            t.rx += s.rx;
+            t.tx += s.tx;
+            t.rx_pps = match (t.rx_pps, s.rx_pps) {
+                (None, None) => None,
+                (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
+            };
+            t.tx_pps = match (t.tx_pps, s.tx_pps) {
+                (None, None) => None,
+                (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
+            };
+        }
+    }
+    sum
+}
 
 pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
     let Some(app) = state.selected_app() else {
         return;
     };
-    let rows = connection_rows(app);
+    let rows = host_rows(app, state);
     let selected = state.connection.min(rows.len().saturating_sub(1));
     // The list as tall as its rows (up to 40% of the screen), the detail takes the rest.
     let list_height = (rows.len() as u16 + 3).clamp(5, (area.height * 2 / 5).max(5));
@@ -35,7 +115,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
     ])
     .areas(area);
 
-    // Connections, with their kind.
+    // Destinations, with their kind.
     let title = Line::from(vec![
         Span::styled(
             " Flow Inspector ",
@@ -43,16 +123,17 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
         ),
         Span::styled(
             format!(
-                " {} · pid {} · {} connections ",
+                " {} · pid {} · {} destinations · {} connections ",
                 app.name,
                 app.pid,
+                rows.len(),
                 app.flow_count()
             ),
             Style::new().fg(ACCENT).bold(),
         ),
     ]);
     let table_rows = rows.iter().map(|row| {
-        let f = &row.flow;
+        let f = &row.combined;
         let (kind, color) = match &f.meta.class {
             Some(c) => {
                 let (symbol, tag, (r, g, b)) = kind_style(c.kind);
@@ -60,17 +141,17 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
             }
             None => ("·".into(), Color::DarkGray),
         };
-        let destination = match row.count {
-            1 => endpoint(f),
-            n => format!("* ({n} sockets)"),
-        };
+        let host = f.remote_host.clone().unwrap_or_else(|| row.ip.to_string());
+        let mut destination = format!(
+            "{host}{}",
+            conversation::ports_label(row.flows.iter().map(|(_, f)| f))
+        );
+        if row.flows.len() > 1 {
+            destination.push_str(&format!(" ×{}", row.flows.len()));
+        }
         let proto = match protocol(f) {
             p if p.is_empty() => service(f.transport, f.remote.port()).to_string(),
             p => p,
-        };
-        let pps = match (f.meta.rx_pps, f.meta.tx_pps) {
-            (Some(r), Some(t)) => format!("{r}/{t}"),
-            _ => String::new(),
         };
         Row::new([
             Cell::from(kind).style(Style::new().fg(color).bold()),
@@ -78,7 +159,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
             Cell::from(proto).style(DIM),
             Cell::from(rate(f.rx_rate)).style(Style::new().fg(DOWN)),
             Cell::from(rate(f.tx_rate)).style(Style::new().fg(UP)),
-            Cell::from(pps).style(DIM),
+            Cell::from(bytes(row.recent)).style(DIM),
         ])
     });
     let table = Table::new(
@@ -99,7 +180,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
             "PROTOCOL",
             "▼ DOWN",
             "▲ UP",
-            "PKT/S ▼/▲",
+            "LAST MIN",
         ])
         .style(Style::new().bold()),
     )
@@ -111,7 +192,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
             .title(title)
             .title_bottom(
                 Line::from(Span::styled(
-                    " ↑↓ choose · d close · b block address · f / Esc back ",
+                    " ↑↓ choose · d close · b block host · f / Esc back ",
                     DIM,
                 ))
                 .alignment(Alignment::Right),
@@ -127,19 +208,15 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
     frame.render_stateful_widget(table, list, &mut table_state);
 
     let Some(row) = rows.get(selected) else {
+        let empty = Paragraph::new(Line::from(Span::styled(
+            " no connection with a destination right now",
+            DIM,
+        )));
+        frame.render_widget(empty, detail);
         return;
     };
-    let history = state
-        .flow_history
-        .get(&(
-            row.owner.pid,
-            row.flow.transport,
-            row.flow.local,
-            row.flow.remote,
-        ))
-        .map(|h| h.iter().copied().collect::<Vec<_>>())
-        .unwrap_or_default();
-    draw_detail(frame, detail, &row.flow);
+    let history = host_series(app, row.ip, state);
+    draw_detail(frame, detail, &row.combined);
     draw_waves(frame, waves, &history);
 }
 

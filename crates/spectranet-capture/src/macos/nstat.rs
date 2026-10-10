@@ -189,6 +189,23 @@ pub struct RawFlow {
 struct Tracked {
     flow: Option<RawFlow>,
     removed: bool,
+    /// The framework's source, to ask again for its description (valid until `removed`, and
+    /// only touched on the manager's queue).
+    source: usize,
+}
+
+impl Tracked {
+    /// A TCP socket described before it connected: its addresses are still unknown. Its
+    /// description is asked for again until they appear (otherwise its traffic would stay
+    /// on a `0.0.0.0` row forever).
+    fn awaiting_addresses(&self) -> bool {
+        !self.removed
+            && self.flow.as_ref().is_some_and(|f| {
+                f.transport == Transport::Tcp
+                    && f.remote.ip().is_unspecified()
+                    && f.tcp_state.as_deref() != Some("Listen")
+            })
+    }
 }
 
 #[derive(Default)]
@@ -268,12 +285,22 @@ impl NStat {
                 // SAFETY: valid manager, called on its own queue.
                 unsafe { (api_counts.query_all_sources)(manager, &completion) };
             });
-            let undescribed = shared
-                .sources
-                .lock()
-                .is_ok_and(|s| s.values().any(|t| t.flow.is_none() && !t.removed));
-            // SAFETY: valid manager, called on its own queue; completions run on it too.
+            let (undescribed, unconnected): (bool, Vec<usize>) =
+                shared.sources.lock().map_or((false, Vec::new()), |s| {
+                    (
+                        s.values().any(|t| t.flow.is_none() && !t.removed),
+                        s.values()
+                            .filter(|t| t.awaiting_addresses())
+                            .map(|t| t.source)
+                            .collect(),
+                    )
+                });
+            // SAFETY: valid manager and live sources (not removed: removal is reported on this
+            // same queue), called on its own queue; completions run on it too.
             unsafe {
+                for source in unconnected {
+                    (api.query_description)(source as SourceRef);
+                }
                 if undescribed {
                     (api.query_all_descriptions)(manager, &query_counts);
                 } else {
@@ -326,7 +353,13 @@ fn register_source(api: &Arc<Api>, keys: &Arc<Keys>, shared: &Arc<Shared>, sourc
         .next_id
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     if let Ok(mut sources) = shared.sources.lock() {
-        sources.insert(id, Tracked::default());
+        sources.insert(
+            id,
+            Tracked {
+                source: source as usize,
+                ..Tracked::default()
+            },
+        );
     }
 
     let on_description = {

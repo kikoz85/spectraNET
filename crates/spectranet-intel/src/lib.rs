@@ -11,6 +11,7 @@
 
 pub mod analysis;
 pub mod classify;
+pub mod conversation;
 pub mod feeds;
 pub mod ipset;
 pub mod radio;

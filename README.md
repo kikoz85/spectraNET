@@ -206,17 +206,18 @@ them.
 Particles and beams take the colour of the traffic (cyan web, violet video, green audio and
 calls, blue downloads, pink uploads, yellow games). **Click a destination** on the horizon or
 on the 2D map, a connection in the inspector, or right-click an app and choose **Stream
-inspector** (its busiest connections are listed), to open the **stream inspector**: what it is
+inspector**, to open the **stream inspector**. It follows what the app exchanges with one host —
+all its connections to it together, as browsers, video players and FTP open several — and
+opens on the busiest one; the others are in the list at the top. It shows what it is
 and why, the handshake, a live visualizer (an equalizer for video and audio, an oscilloscope
 for calls and games, an exchange log for web traffic, a flowing bar for transfers) and the
 bandwidth.
 
-![Right-click an app: Stream inspector lists its busiest connections](docs/screenshots/stream-menu.png)
-
 ![The stream inspector on a call, 2D map](docs/screenshots/flow-hud-it.png)
 
-In the terminal: `snet top` → `f` opens the **Flow Inspector** (connections with their kind,
-protocol, TLS, JA4, reasons, and live waves of bandwidth and packets); `snet stream --name
+In the terminal: `snet top` → `f` opens the **Flow Inspector** (one row per destination, all its
+connections together, with kind, protocol, TLS, JA4, reasons, and live waves of bandwidth and
+packets); `snet stream --name
 chrome` prints each classification as it happens (`--json` for NDJSON); `snet inspect --pid
 4102` shows a process's network profile. After a day of learning, snetd raises an alert when
 an application connects with a TLS client never seen for it.
@@ -720,17 +721,18 @@ li rivela.
 Particelle e raggi prendono il colore del traffico (ciano web, viola video, verde audio e
 chiamate, blu download, rosa caricamenti, giallo giochi). **Clicca una destinazione**
 all'orizzonte o sulla mappa 2D, una connessione nell'ispettore, oppure fai clic destro su un'app
-e scegli **Ispettore del flusso** (sono elencate le sue connessioni più attive), per aprire
-l'**ispettore del flusso**: che cos'è e perché, l'handshake, un visualizzatore dal vivo (equalizzatore per video e
+e scegli **Ispettore del flusso**, per aprire l'**ispettore del flusso**. Segue ciò che l'app
+scambia con un host — tutte le sue connessioni verso di esso insieme, perché browser, lettori
+video e FTP ne aprono diverse — e si apre sul più attivo; gli altri sono nell'elenco in alto.
+Mostra che cos'è e perché, l'handshake, un visualizzatore dal vivo (equalizzatore per video e
 audio, oscilloscopio per chiamate e giochi, registro degli scambi per il web, barra in movimento
 per i trasferimenti) e la banda.
 
-![Clic destro su un'app: Ispettore del flusso elenca le sue connessioni più attive](docs/screenshots/stream-menu.png)
-
 ![L'ispettore del flusso su una chiamata, mappa 2D](docs/screenshots/flow-hud-it.png)
 
-Nel terminale: `snet top` → `f` apre il **Flow Inspector** (connessioni con tipo, protocollo,
-TLS, JA4, motivi e onde dal vivo di banda e pacchetti); `snet stream --name chrome` stampa ogni
+Nel terminale: `snet top` → `f` apre il **Flow Inspector** (una riga per destinazione, tutte
+le sue connessioni insieme, con tipo, protocollo, TLS, JA4, motivi e onde dal vivo di banda e
+pacchetti); `snet stream --name chrome` stampa ogni
 classificazione appena avviene (`--json` per NDJSON); `snet inspect --pid 4102` mostra il
 profilo di rete di un processo. Dopo un giorno di apprendimento, snetd segnala un allarme quando
 un'applicazione si collega con un client TLS mai visto per lei.

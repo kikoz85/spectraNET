@@ -204,6 +204,102 @@ fn call_port(port: u16) -> bool {
     matches!(port, 3478..=3481 | 8801..=8810 | 19302..=19309 | 50000..=50059)
 }
 
+/// The service a well-known port belongs to, for the reasons shown to the user.
+pub fn port_service(port: u16) -> Option<&'static str> {
+    Some(match port {
+        20 | 21 => "FTP",
+        22 => "SSH · SFTP · SCP",
+        989 | 990 => "FTPS",
+        445 => "SMB",
+        548 => "AFP",
+        873 => "rsync",
+        2049 => "NFS",
+        8096 | 8920 => "Jellyfin · Emby",
+        32400 => "Plex",
+        5900..=5909 => "VNC",
+        3389 => "RDP",
+        3478..=3481 => "STUN · TURN",
+        8801..=8810 => "Zoom",
+        19302..=19309 => "Google Meet",
+        50000..=50059 => "WebRTC",
+        _ => return None,
+    })
+}
+
+/// Ports of remote desktops: VNC (5900–5909, macOS Screen Sharing) and RDP (3389).
+fn remote_desktop_port(port: u16) -> bool {
+    matches!(port, 5900..=5909 | 3389)
+}
+
+/// A remote screen is a video of a desktop: named so once it moves (50 kB in the window).
+fn remote_desktop(flow: &Flow, samples: &VecDeque<Sample>) -> Option<Option<Class>> {
+    let port = [flow.remote.port(), flow.local.port()]
+        .into_iter()
+        .find(|p| remote_desktop_port(*p))?;
+    if flow.transport != Transport::Tcp {
+        return None;
+    }
+    let moved: u64 = samples.iter().map(|s| s.rx + s.tx).sum();
+    Some((moved >= 50_000).then(|| Class {
+        kind: Kind::Video,
+        certainty: Certainty::VeryLikely,
+        reasons: vec![Reason::WellKnownPort { port }],
+    }))
+}
+
+/// Ports of file-transfer protocols: FTP (20, 21), SSH with SFTP and SCP (22), FTPS (989,
+/// 990), SMB (445), AFP (548), rsync (873), NFS (2049).
+pub fn file_transfer_port(port: u16) -> bool {
+    matches!(port, 20 | 21 | 22 | 445 | 548 | 873 | 989 | 990 | 2049)
+}
+
+/// Moved over the window before a file-transfer connection counts as a transfer (below, it is
+/// a session: commands, a remote shell, browsing folders).
+const TRANSFER_MIN_BYTES: u64 = 1 << 20;
+
+/// File-transfer protocols carry files, whatever their rhythm looks like (a fast SFTP copy
+/// comes in bursts, like a video player): a download or an upload by direction, or nothing.
+fn file_transfer(flow: &Flow, samples: &VecDeque<Sample>) -> Option<Option<Class>> {
+    let port = if file_transfer_port(flow.remote.port()) {
+        flow.remote.port()
+    } else if file_transfer_port(flow.local.port()) {
+        flow.local.port()
+    } else {
+        return None;
+    };
+    if flow.transport != Transport::Tcp {
+        return None;
+    }
+    let rx: u64 = samples.iter().map(|s| s.rx).sum();
+    let tx: u64 = samples.iter().map(|s| s.tx).sum();
+    if rx.max(tx) < TRANSFER_MIN_BYTES {
+        return Some(None);
+    }
+    let download = rx >= tx;
+    let rate = rx.max(tx) / samples.len().max(1) as u64;
+    Some(Some(Class {
+        kind: if download {
+            Kind::Download
+        } else {
+            Kind::Upload
+        },
+        certainty: Certainty::VeryLikely,
+        reasons: vec![
+            Reason::WellKnownPort { port },
+            Reason::Sustained { download, rate },
+        ],
+    }))
+}
+
+/// Ports of home media servers: Jellyfin and Emby (8096, 8920), Plex (32400).
+fn media_server_port(port: u16) -> bool {
+    matches!(port, 8096 | 8920 | 32400)
+}
+
+/// Received at least this much from a media server before the port counts as evidence: the
+/// same port also carries the server's web pages and API.
+const MEDIA_SERVER_MIN_BYTES: u64 = 4 << 20;
+
 /// What the pattern alone says.
 fn pattern(flow: &Flow, samples: &VecDeque<Sample>) -> Option<(Kind, Vec<Reason>)> {
     if samples.len() < MIN_SAMPLES {
@@ -442,8 +538,27 @@ fn classify(
     {
         return Some(class);
     }
+    if let Some(class) = file_transfer(flow, samples) {
+        return class;
+    }
+    if let Some(class) = remote_desktop(flow, samples) {
+        return class;
+    }
     let port = flow.remote.port();
-    let by_port = (flow.transport == Transport::Udp && call_port(port)).then_some(Kind::Call);
+    // A player on a fast local network downloads minutes of film in a second, then waits:
+    // the bursts are too far apart for the pattern, so a media server's port, with a large
+    // download, speaks for it.
+    let media_server = flow.transport == Transport::Tcp
+        && media_server_port(port)
+        && flow.rx_bytes >= MEDIA_SERVER_MIN_BYTES
+        && flow.rx_bytes > flow.tx_bytes.saturating_mul(10);
+    let by_port = if flow.transport == Transport::Udp && call_port(port) {
+        Some(Kind::Call)
+    } else if media_server {
+        Some(Kind::Video)
+    } else {
+        None
+    };
     let seen = pattern(flow, samples);
     let alpn = flow.meta.tls.as_ref().and_then(|t| t.alpn.first().cloned());
 
@@ -506,6 +621,84 @@ fn classify(
 mod tests {
     use super::*;
     use spectranet_model::{Process, ProcessTraffic, Verdict};
+
+    #[test]
+    fn remote_desktops_are_named_by_port() {
+        let vnc = flow(Transport::Tcp, "192.168.1.20:5900", Some("notebook"));
+        let screen: VecDeque<Sample> = (0..WINDOW)
+            .map(|i| Sample {
+                rx: if i % 15 == 0 { 1 << 20 } else { 2_000 },
+                tx: 100,
+                ..Default::default()
+            })
+            .collect();
+        let class = classify(&vnc, &screen, &Domains::builtin(), None).unwrap();
+        assert_eq!(class.kind, Kind::Video);
+        assert_eq!(class.reasons, vec![Reason::WellKnownPort { port: 5900 }]);
+        assert_eq!(port_service(5900), Some("VNC"));
+        assert_eq!(port_service(22), Some("SSH · SFTP · SCP"));
+        assert_eq!(port_service(443), None);
+    }
+
+    #[test]
+    fn file_transfers_are_never_called_video() {
+        // A fast SFTP copy arrives in bursts, like a video player filling its buffer.
+        let mut sftp = flow(Transport::Tcp, "82.85.208.204:22", None);
+        sftp.rx_bytes = 900 << 20;
+        let bursts: VecDeque<Sample> = (0..WINDOW)
+            .map(|i| Sample {
+                rx: if i % 4 == 0 { 40 << 20 } else { 1 << 20 },
+                tx: 60 << 10,
+                ..Default::default()
+            })
+            .collect();
+        let class = classify(&sftp, &bursts, &Domains::builtin(), None).unwrap();
+        assert_eq!(class.kind, Kind::Download);
+        assert!(class.reasons.contains(&Reason::WellKnownPort { port: 22 }));
+        // Sending files over SMB is an upload.
+        let smb = flow(Transport::Tcp, "192.168.1.50:445", Some("nucserver"));
+        let up: VecDeque<Sample> = (0..WINDOW)
+            .map(|_| Sample {
+                rx: 20 << 10,
+                tx: 30 << 20,
+                ..Default::default()
+            })
+            .collect();
+        assert_eq!(
+            classify(&smb, &up, &Domains::builtin(), None).unwrap().kind,
+            Kind::Upload
+        );
+        // A remote shell is not a transfer, nor a call or a game.
+        let quiet: VecDeque<Sample> = (0..WINDOW)
+            .map(|_| Sample {
+                rx: 300,
+                tx: 200,
+                rx_pps: Some(20),
+                tx_pps: Some(20),
+            })
+            .collect();
+        assert!(classify(&sftp, &quiet, &Domains::builtin(), None).is_none());
+    }
+
+    #[test]
+    fn a_film_from_a_home_media_server_is_video_even_between_bursts() {
+        let mut film = flow(Transport::Tcp, "192.168.1.50:8096", Some("nucserver"));
+        film.rx_bytes = 120 << 20;
+        film.tx_bytes = 300 << 10;
+        // Idle between two bursts: nothing in the window.
+        let quiet: VecDeque<Sample> = (0..WINDOW).map(|_| Sample::default()).collect();
+        let class = classify(&film, &quiet, &Domains::builtin(), None).unwrap();
+        assert_eq!(class.kind, Kind::Video);
+        assert!(
+            class
+                .reasons
+                .contains(&Reason::WellKnownPort { port: 8096 })
+        );
+        // The server's pages and API on the same port are not called video.
+        let mut api = flow(Transport::Tcp, "192.168.1.50:8096", Some("nucserver"));
+        api.rx_bytes = 31 << 10;
+        assert!(classify(&api, &quiet, &Domains::builtin(), None).is_none());
+    }
 
     fn flow(transport: Transport, remote: &str, host: Option<&str>) -> Flow {
         Flow {

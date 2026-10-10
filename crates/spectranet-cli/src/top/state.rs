@@ -152,6 +152,18 @@ pub struct TopState {
     pub flows: bool,
     /// The last minute of every connection: rates and packet rates per sample.
     pub flow_history: HashMap<FlowId, VecDeque<FlowSample>>,
+    /// The last minute of each process's traffic with each remote host, all its connections
+    /// together: what the Flow Inspector shows (connections come and go, the conversation
+    /// stays).
+    pub host_history: HashMap<(u32, std::net::IpAddr), HostHistory>,
+}
+
+/// Samples of one process–host conversation.
+#[derive(Debug, Clone, Default)]
+pub struct HostHistory {
+    pub samples: VecDeque<FlowSample>,
+    /// Samples since a connection to the host was last seen.
+    idle: usize,
 }
 
 /// A connection, across samples.
@@ -205,6 +217,7 @@ impl TopState {
             )),
             flows: false,
             flow_history: HashMap::new(),
+            host_history: HashMap::new(),
         }
     }
 
@@ -234,6 +247,37 @@ impl TopState {
             }
         }
         self.flow_history.retain(|id, _| live.contains(id));
+        let mut now: HashMap<(u32, std::net::IpAddr), FlowSample> = HashMap::new();
+        for p in &snapshot.processes {
+            for f in p.flows.iter().filter(|f| !f.remote.ip().is_unspecified()) {
+                let e = now.entry((p.process.pid, f.remote.ip())).or_default();
+                e.rx += f.rx_rate;
+                e.tx += f.tx_rate;
+                let add = |a: Option<u32>, b: Option<u32>| match (a, b) {
+                    (None, None) => None,
+                    (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
+                };
+                e.rx_pps = add(e.rx_pps, f.meta.rx_pps);
+                e.tx_pps = add(e.tx_pps, f.meta.tx_pps);
+            }
+        }
+        for (id, h) in &mut self.host_history {
+            if !now.contains_key(id) {
+                h.idle += 1;
+                h.samples.push_back(FlowSample::default());
+            }
+        }
+        for (id, sample) in now {
+            let h = self.host_history.entry(id).or_default();
+            h.idle = 0;
+            h.samples.push_back(sample);
+        }
+        for h in self.host_history.values_mut() {
+            while h.samples.len() > FLOW_HISTORY {
+                h.samples.pop_front();
+            }
+        }
+        self.host_history.retain(|_, h| h.idle < FLOW_HISTORY);
         self.raw = Some(snapshot);
         self.rebuild();
     }
@@ -442,6 +486,30 @@ impl TopState {
         let Some(app) = self.selected_app() else {
             return;
         };
+        // In the Flow Inspector a row is a destination: close it when it is one connection.
+        if self.flows {
+            let hosts = super::flows::host_rows(app, self);
+            let Some(host) = hosts.get(self.connection) else {
+                return;
+            };
+            let [(pid, flow)] = host.flows.as_slice() else {
+                return self.refuse(format!(
+                    "this destination uses {} connections: open the inspector (Enter) and choose one",
+                    host.flows.len()
+                ));
+            };
+            if cfg!(windows) && flow.transport != Transport::Tcp {
+                return self.refuse("Windows can only close TCP connections".into());
+            }
+            self.modal = Some(Modal::Confirm(Confirm::Drop {
+                pid: *pid,
+                transport: flow.transport,
+                local: flow.local,
+                remote: flow.remote,
+                label: endpoint(flow),
+            }));
+            return;
+        }
         let rows = connection_rows(app);
         let Some(row) = rows.get(self.connection) else {
             return;
@@ -469,7 +537,23 @@ impl TopState {
         let Some(app) = self.selected_app() else {
             return;
         };
-        let confirm = if self.details && self.focus == Focus::Connections {
+        let confirm = if self.flows {
+            let hosts = super::flows::host_rows(app, self);
+            let Some(host) = hosts.get(self.connection) else {
+                return;
+            };
+            if let Err(why) = act::check(self.actions.as_ref(), capability::BLOCK_IP) {
+                return self.refuse(why);
+            }
+            Confirm::Block {
+                target: spectranet_proto::BlockTarget::Remote { ip: host.ip },
+                label: host
+                    .combined
+                    .remote_host
+                    .clone()
+                    .unwrap_or_else(|| host.ip.to_string()),
+            }
+        } else if self.details && self.focus == Focus::Connections {
             let rows = connection_rows(app);
             let Some(row) = rows.get(self.connection) else {
                 return;
@@ -704,8 +788,19 @@ impl TopState {
         self.connection = 0;
     }
 
+    /// Rows of the connection list, or of the Flow Inspector's destinations.
+    fn connection_count(&self) -> usize {
+        self.selected_app().map_or(0, |a| {
+            if self.flows {
+                super::flows::host_rows(a, self).len()
+            } else {
+                connection_rows(a).len()
+            }
+        })
+    }
+
     fn move_connection(&mut self, delta: isize) {
-        let len = self.selected_app().map_or(0, |a| connection_rows(a).len());
+        let len = self.connection_count();
         self.connection =
             ((self.connection as isize + delta).max(0) as usize).min(len.saturating_sub(1));
     }
@@ -757,7 +852,7 @@ impl TopState {
             self.details = false;
             self.focus = Focus::Table;
         }
-        let len = self.selected_app().map_or(0, |a| connection_rows(a).len());
+        let len = self.connection_count();
         self.connection = self.connection.min(len.saturating_sub(1));
     }
 }

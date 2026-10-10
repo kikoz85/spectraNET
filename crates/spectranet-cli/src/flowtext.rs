@@ -67,7 +67,10 @@ pub fn reason_text(r: &Reason) -> String {
             "steady stream of small packets both ways ({pps} packets/s of about {size} bytes)"
         ),
         Reason::ShortExchanges => "short exchanges separated by pauses".into(),
-        Reason::WellKnownPort { port } => format!("port {port} is used by call services"),
+        Reason::WellKnownPort { port } => match spectranet_intel::classify::port_service(*port) {
+            Some(service) => format!("port {port}: {service}"),
+            None => format!("port {port}, used by this kind of service"),
+        },
         Reason::Protocol { alpn } => format!("the client offered {alpn}"),
         Reason::RadioProgram { program } => format!("{program} is radio software"),
         Reason::RadioPort { port, service } => format!("port {port} is used by {service}"),
