@@ -10,6 +10,8 @@ macOS · Linux · Windows</p>
 
 <p align="center"><a href="#english">English</a> · <a href="#italiano">Italiano</a></p>
 
+<p align="center"><a href="https://github.com/sponsors/kikoz85"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors&logoColor=white" alt="Sponsor spectraNET on GitHub"></a></p>
+
 ![The spectraNET city](docs/screenshots/city.png)
 
 ---
@@ -45,6 +47,7 @@ things it downloads are public threat-intelligence lists.
 - [Languages](#languages)
 - [Runs everywhere](#runs-everywhere)
 - [Install](#install)
+- [Updates and support](#updates-and-support)
 - [Command line: snet](#command-line-snet)
 - [How it works](#how-it-works)
 
@@ -179,10 +182,13 @@ them.
 
 Particles and beams take the colour of the traffic (cyan web, violet video, green audio and
 calls, blue downloads, pink uploads, yellow games). **Click a destination** on the horizon or
-on the 2D map, or a connection in the inspector, to open the **stream inspector**: what it is
+on the 2D map, a connection in the inspector, or right-click an app and choose **Stream
+inspector** (its busiest connections are listed), to open the **stream inspector**: what it is
 and why, the handshake, a live visualizer (an equalizer for video and audio, an oscilloscope
 for calls and games, an exchange log for web traffic, a flowing bar for transfers) and the
 bandwidth.
+
+![Right-click an app: Stream inspector lists its busiest connections](docs/screenshots/stream-menu.png)
 
 ![The stream inspector on a call, 2D map](docs/screenshots/flow-hud-it.png)
 
@@ -282,7 +288,8 @@ Download the package for your system from the
 
 1. Open `spectraNET-<version>-macos-universal.dmg` and drag **spectraNET** to Applications.
 2. The app is not notarised: the first time, right-click it and choose **Open**.
-3. Install the background service (recommended) from the CLI archive:
+3. Install the background service (recommended): open the app and click **Install service** in
+   the bar under the top bar (macOS asks for your password). Or from the CLI archive:
    ```sh
    tar xzf spectranet-cli-<version>-macos-universal.tar.gz
    cd spectranet-cli-<version>-macos-universal
@@ -321,6 +328,25 @@ A portable `spectranet-<version>-windows-x86_64.zip` is also available
 
 Without the service the app still works: it measures traffic itself (*Live · direct*), with
 fewer hostnames and no history or alerts. To just look around: `spectranet --demo`.
+
+### Updates and support
+
+spectraNET checks the releases now and then. When a new version is out, a bar under the top bar
+offers to **install it and restart**: the app downloads the package for your kind of
+installation (macOS app, Windows installer, Linux AppImage or Debian package), checks it against
+the release's `SHA256SUMS.txt`, installs it together with the snetd service (one administrator
+prompt) and starts again. When the service is missing or older than the app, the same bar
+offers to install or update it. The portable zip and the tarballs open the releases page
+instead.
+
+**About spectraNET** (click the logo at the top left) shows your version, *Check for updates*
+and the switch for automatic checks.
+
+![About spectraNET, with a new version on offer](docs/screenshots/about.png)
+
+spectraNET is free. If it is useful to you, you can support its development with
+**[GitHub Sponsors](https://github.com/sponsors/kikoz85)** — the Sponsor button is also in the
+app, in the guide and in *About spectraNET*.
 
 ### Command line: snet
 
@@ -420,6 +446,7 @@ cose che scarica sono le liste pubbliche di threat intelligence.
 - [Lingue](#lingue)
 - [Su ogni sistema](#su-ogni-sistema)
 - [Installazione](#installazione)
+- [Aggiornamenti e sostegno](#aggiornamenti-e-sostegno)
 - [Riga di comando: snet](#riga-di-comando-snet)
 - [Come funziona](#come-funziona)
 
@@ -553,10 +580,13 @@ li rivela.
 
 Particelle e raggi prendono il colore del traffico (ciano web, viola video, verde audio e
 chiamate, blu download, rosa caricamenti, giallo giochi). **Clicca una destinazione**
-all'orizzonte o sulla mappa 2D, o una connessione nell'ispettore, per aprire l'**ispettore del
-flusso**: che cos'è e perché, l'handshake, un visualizzatore dal vivo (equalizzatore per video e
+all'orizzonte o sulla mappa 2D, una connessione nell'ispettore, oppure fai clic destro su un'app
+e scegli **Ispettore del flusso** (sono elencate le sue connessioni più attive), per aprire
+l'**ispettore del flusso**: che cos'è e perché, l'handshake, un visualizzatore dal vivo (equalizzatore per video e
 audio, oscilloscopio per chiamate e giochi, registro degli scambi per il web, barra in movimento
 per i trasferimenti) e la banda.
+
+![Clic destro su un'app: Ispettore del flusso elenca le sue connessioni più attive](docs/screenshots/stream-menu.png)
 
 ![L'ispettore del flusso su una chiamata, mappa 2D](docs/screenshots/flow-hud-it.png)
 
@@ -643,7 +673,8 @@ Scarica il pacchetto per il tuo sistema dalla pagina
 
 1. Apri `spectraNET-<versione>-macos-universal.dmg` e trascina **spectraNET** in Applicazioni.
 2. L'app non è notarizzata: la prima volta, clic destro e **Apri**.
-3. Installa il servizio in background (consigliato) dall'archivio CLI:
+3. Installa il servizio in background (consigliato): apri l'app e clicca **Installa servizio**
+   nella barra sotto la barra in alto (macOS chiede la password). Oppure dall'archivio CLI:
    ```sh
    tar xzf spectranet-cli-<versione>-macos-universal.tar.gz
    cd spectranet-cli-<versione>-macos-universal
@@ -683,6 +714,25 @@ Scarica il pacchetto per il tuo sistema dalla pagina
 Senza il servizio l'app funziona comunque: misura il traffico da sola (*In diretta ·
 diretta*), con meno nomi e senza cronologia né allarmi. Per dare solo un'occhiata:
 `spectranet --demo`.
+
+### Aggiornamenti e sostegno
+
+spectraNET controlla le release di tanto in tanto. Quando esce una nuova versione, una barra
+sotto la barra in alto propone di **installarla e riavviare**: l'app scarica il pacchetto per il
+tuo tipo di installazione (app macOS, installer Windows, AppImage o pacchetto Debian di Linux),
+lo verifica con il `SHA256SUMS.txt` della release, lo installa insieme al servizio snetd (una
+sola richiesta di password) e riparte. Quando il servizio manca o è più vecchio dell'app, la
+stessa barra propone di installarlo o aggiornarlo. Lo zip portabile e gli archivi tar.gz aprono
+invece la pagina delle release.
+
+**Informazioni su spectraNET** (clic sul logo in alto a sinistra) mostra la versione,
+*Controlla aggiornamenti* e l'interruttore per i controlli automatici.
+
+![Informazioni su spectraNET, con una nuova versione disponibile](docs/screenshots/about.png)
+
+spectraNET è gratuito. Se ti è utile, puoi sostenerne lo sviluppo con
+**[GitHub Sponsors](https://github.com/sponsors/kikoz85)** — il pulsante Sponsor è anche
+nell'app, nella guida e in *Informazioni su spectraNET*.
 
 ### Riga di comando: snet
 
