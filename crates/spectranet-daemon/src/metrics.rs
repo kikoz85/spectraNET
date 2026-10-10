@@ -25,6 +25,10 @@ pub struct Metrics {
     totals: HashMap<String, (f64, f64, Instant)>,
     /// The latest per-application gauges.
     apps: Vec<AppGauges>,
+    /// Bytes through the network interfaces, and attributed to applications, since snetd
+    /// started: (received, sent).
+    interfaces: (f64, f64),
+    attributed: (f64, f64),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -86,6 +90,12 @@ impl Metrics {
                 self.totals.remove(&name);
             }
         }
+        if let Some(link) = &snapshot.link {
+            self.interfaces.0 += link.rx_rate as f64 * seconds;
+            self.interfaces.1 += link.tx_rate as f64 * seconds;
+            self.attributed.0 += link.attributed_rx as f64 * seconds;
+            self.attributed.1 += link.attributed_tx as f64 * seconds;
+        }
         let mut list: Vec<AppGauges> = apps.into_values().collect();
         list.sort_by(|a, b| a.name.cmp(&b.name));
         self.apps = list;
@@ -119,6 +129,28 @@ impl Metrics {
             "Traffic samples taken.",
         );
         let _ = writeln!(out, "spectranet_samples_total {}", self.samples);
+        family(
+            &mut out,
+            "spectranet_interface_bytes_total",
+            "counter",
+            "Bytes through the network interfaces (loopback and tunnels excluded), headers included.",
+        );
+        let _ = writeln!(
+            out,
+            "spectranet_interface_bytes_total{{direction=\"receive\"}} {:.0}\nspectranet_interface_bytes_total{{direction=\"transmit\"}} {:.0}",
+            self.interfaces.0, self.interfaces.1
+        );
+        family(
+            &mut out,
+            "spectranet_attributed_bytes_total",
+            "counter",
+            "The part of the interfaces' traffic attributed to applications (payload plus estimated headers).",
+        );
+        let _ = writeln!(
+            out,
+            "spectranet_attributed_bytes_total{{direction=\"receive\"}} {:.0}\nspectranet_attributed_bytes_total{{direction=\"transmit\"}} {:.0}",
+            self.attributed.0, self.attributed.1
+        );
         family(
             &mut out,
             "spectranet_clients",

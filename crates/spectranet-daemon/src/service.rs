@@ -1,5 +1,6 @@
 //! The service: samples traffic continuously, keeps history, answers clients.
 
+use std::collections::VecDeque;
 use std::io::{self, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -83,7 +84,16 @@ struct Shared {
     settings: spectranet_proto::ServiceSettings,
     feeds_disabled: Vec<String>,
     history_days: u32,
+    /// The last minute of reconciliation with the interfaces: (interface bytes, attributed
+    /// bytes) per sample, and the interfaces of the latest sample.
+    coverage: Mutex<CoverageWindow>,
 }
+
+/// (interface bytes, attributed bytes) per sample, and the interfaces of the latest one.
+type CoverageWindow = (VecDeque<(u64, u64)>, Vec<String>);
+
+/// Samples kept for the coverage reported in the status.
+const COVERAGE_WINDOW: usize = 60;
 
 /// Runs until `stop` is set. Removes its socket on the way out.
 pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBool) -> Result<()> {
@@ -119,6 +129,7 @@ pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBoo
         settings: config.settings.clone(),
         feeds_disabled: config.feeds_disabled.clone(),
         history_days: config.history_days,
+        coverage: Mutex::new((VecDeque::new(), Vec::new())),
     });
     prune_history(&shared);
     for notice in &shared.notices {
@@ -263,6 +274,18 @@ fn sample_loop(
                 }
                 if let Ok(mut pending) = shared.pending.lock() {
                     pending.record(&usage::today(), &snapshot);
+                }
+                if let (Some(link), Ok(mut coverage)) = (&snapshot.link, shared.coverage.lock()) {
+                    let secs = snapshot.interval_ms as f64 / 1000.0;
+                    let bytes = |rate: u64| (rate as f64 * secs) as u64;
+                    coverage.0.push_back((
+                        bytes(link.rx_rate + link.tx_rate),
+                        bytes(link.attributed_rx + link.attributed_tx),
+                    ));
+                    while coverage.0.len() > COVERAGE_WINDOW {
+                        coverage.0.pop_front();
+                    }
+                    coverage.1.clone_from(&link.interfaces);
                 }
                 keep_blocks(shared, &snapshot);
                 if config.metrics.is_some()
@@ -522,6 +545,14 @@ fn answer(command: Command, shared: &Shared, peer: &crate::transport::Peer) -> R
             actions_elevated_only: shared.policy.elevated_only,
             blocks: shared.blocks.lock().map(|b| b.len() as u64).unwrap_or(0),
             settings: Some(shared.settings.clone()),
+            coverage: shared.coverage.lock().ok().and_then(|c| {
+                (!c.0.is_empty()).then(|| spectranet_proto::Coverage {
+                    seconds: c.0.len() as u64,
+                    interface_bytes: c.0.iter().map(|s| s.0).sum(),
+                    attributed_bytes: c.0.iter().map(|s| s.1).sum(),
+                    interfaces: c.1.clone(),
+                })
+            }),
         }),
         Command::Act { action } => {
             let snapshot = latest(shared);

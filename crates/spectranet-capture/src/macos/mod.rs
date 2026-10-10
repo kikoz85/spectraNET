@@ -229,6 +229,7 @@ impl TrafficSource for MacosSource {
                 .map_or(0, |d| d.as_millis() as u64),
             interval_ms: elapsed.as_millis() as u64,
             processes,
+            link: None,
         })
     }
 }

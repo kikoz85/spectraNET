@@ -156,6 +156,8 @@ pub struct TopState {
     /// together: what the Flow Inspector shows (connections come and go, the conversation
     /// stays).
     pub host_history: HashMap<(u32, std::net::IpAddr), HostHistory>,
+    /// The last minute of reconciliation with the interfaces: (interface bytes, attributed).
+    pub coverage_window: VecDeque<(u64, u64)>,
 }
 
 /// Samples of one process–host conversation.
@@ -218,6 +220,7 @@ impl TopState {
             flows: false,
             flow_history: HashMap::new(),
             host_history: HashMap::new(),
+            coverage_window: VecDeque::new(),
         }
     }
 
@@ -278,8 +281,27 @@ impl TopState {
             }
         }
         self.host_history.retain(|_, h| h.idle < FLOW_HISTORY);
+        if let Some(link) = &snapshot.link {
+            let secs = snapshot.interval_ms as f64 / 1000.0;
+            let bytes = |rate: u64| (rate as f64 * secs) as u64;
+            push_bounded(
+                &mut self.coverage_window,
+                (
+                    bytes(link.rx_rate + link.tx_rate),
+                    bytes(link.attributed_rx + link.attributed_tx),
+                ),
+            );
+        }
         self.raw = Some(snapshot);
         self.rebuild();
+    }
+
+    /// Share of the interfaces' traffic attributed to applications over the last minute, when
+    /// enough went through to judge.
+    pub fn coverage(&self) -> Option<f64> {
+        let total = self.coverage_window.iter().map(|c| c.0).sum();
+        let attributed = self.coverage_window.iter().map(|c| c.1).sum();
+        spectranet_model::coverage(total, attributed, 1 << 20)
     }
 
     pub fn on_error(&mut self, message: String) {
@@ -869,7 +891,7 @@ fn key_of(app: &AppTraffic, by_process: bool) -> String {
     format!("{}|{}|{pid}", app.path.as_deref().unwrap_or(""), app.name)
 }
 
-fn push_bounded(history: &mut VecDeque<u64>, value: u64) {
+fn push_bounded<T>(history: &mut VecDeque<T>, value: T) {
     if history.len() == HISTORY {
         history.pop_front();
     }

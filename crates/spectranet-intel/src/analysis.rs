@@ -390,6 +390,7 @@ mod tests {
             timestamp_ms: T0 + t_s * 1000,
             interval_ms: 1000,
             processes: vec![ProcessTraffic::new(process, flows)],
+            link: None,
         }
     }
 

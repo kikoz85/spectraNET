@@ -70,6 +70,7 @@ distributed**:
 - [Updates and support](#updates-and-support)
 - [Command line: snet](#command-line-snet)
 - [How it works](#how-it-works)
+- [Accuracy](#accuracy)
 - [Building from source](#building-from-source)
 - [Project layout](#project-layout)
 - [License](#license)
@@ -471,6 +472,44 @@ The desktop app uses its own 3D renderer (Metal on macOS,
 DirectX 12 on Windows, Vulkan or OpenGL on Linux): HDR rendering with multisampling, bloom and
 ACES tone mapping, about 2 ms per frame on an Apple M1 Max.
 
+### Accuracy
+
+snetd does not sit in the path of your traffic and does not capture every packet: it reads the
+byte counters the kernel already keeps for every socket of every process. Nothing can slow
+down or break the network, and the numbers are the kernel's own — not a guess from sniffed
+packets matched to processes afterwards.
+
+**Reconciliation with the network interfaces.** Every second snetd also reads the counters of
+the network adapters (loopback, tunnels, bonds' members and other virtual interfaces left out,
+so nothing is counted twice) and compares them with what the applications' connections account
+for, packet headers included. `snet status`, `snet list`, `snet top`, the app (hover the
+*Live* badge, or *Options → snetd service*) and the Prometheus metrics show the share:
+
+```
+coverage: 98.3% of the traffic on bond0 attributed to applications over the last 60 s
+```
+
+What is left is traffic no program on this computer owns — other devices shared or bridged
+through it, the system's own protocols — or a fault worth reporting: a blind spot can't hide.
+
+**Tested on real networks.** `snet-qa` (in the open-source repository) runs known transfers
+against another computer and compares, byte for byte, what the capture measured. Results for
+1.1.0, over a gigabit local network:
+
+| Scenario | macOS (NetworkStatistics) | Linux (eBPF) | Windows (ETW) |
+|---|---|---|---|
+| 200 MB download | exact (+0.001%) | exact | exact |
+| 100 MB upload | exact | exact | exact |
+| 4 parallel downloads, 100 MB | +0.05% | exact | exact |
+| 200 connections of 50 kB, a few ms each | exact, 200/200 seen | exact, 200/200 | exact, 200/200 |
+| long quiet connection (15 × 64 bytes) | exact | +1 byte | exact |
+| 20 MB of UDP | exact | exact | exact |
+| interfaces' traffic attributed | 94–100% | 94–100% | 96–100% |
+
+The parsers that read names off the network (DNS, TLS, QUIC, link-layer frames) are fuzzed with
+80,000 malformed inputs on every test run, and snetd's CPU and memory are recorded over 24-hour
+runs (`snet-qa soak`).
+
 ### Building from source
 
 The command-line tool `snet`, the service `snetd` and the libraries they use are open source and
@@ -505,7 +544,12 @@ sudo ./target/release/snetd install          # macOS and Linux
 .\target\release\snetd.exe install           # Windows, from an administrator PowerShell
 ```
 
-`snetd uninstall` removes it again (`--purge` also deletes the history). Shell completions:
+`snetd uninstall` removes it again (`--purge` also deletes the history).
+
+**Check the accuracy on your network**: run `snet-qa serve` on another computer, then on this
+one `snet-qa run --peer OTHER:47800` (as administrator on Linux and Windows). Every scenario is
+compared byte for byte with what the capture measured; `snet-qa soak --name snetd --out
+snetd.csv` records CPU and memory over time. Shell completions:
 `snet generate completions <bash|zsh|fish|powershell|elvish>`; man pages: `snet generate man DIR`.
 
 ### Project layout
@@ -518,6 +562,7 @@ sudo ./target/release/snetd install          # macOS and Linux
 | `crates/spectranet-proto` | Protocol between clients and `snetd` (JSON lines over a socket or named pipe) |
 | `crates/spectranet-daemon` | `snetd`: continuous sampling, history, alerts, actions, service installation |
 | `crates/spectranet-cli` | `snet`: commands, full-screen `top`, man pages, completions |
+| `crates/spectranet-qa` | `snet-qa`: accuracy and endurance tests on real networks (see Accuracy) |
 | `ebpf/` | The Linux kernel probes (GPL-2.0) |
 | `data/` | The list of known services, refreshed by `snetd` from this repository |
 
@@ -585,6 +630,7 @@ distribuita**:
 - [Aggiornamenti e sostegno](#aggiornamenti-e-sostegno)
 - [Riga di comando: snet](#riga-di-comando-snet)
 - [Come funziona](#come-funziona)
+- [Affidabilità](#affidabilità)
 - [Compilare dai sorgenti](#compilare-dai-sorgenti)
 - [Struttura del progetto](#struttura-del-progetto)
 - [Licenza](#licenza)
@@ -960,6 +1006,45 @@ Le ricerche inverse dei nomi (mDNS, NetBIOS, il DNS del gateway) vengono fatte s
 indirizzi della rete locale. L'app desktop usa un proprio
 renderer 3D (Metal su macOS, DirectX 12 su Windows, Vulkan o OpenGL su Linux).
 
+### Affidabilità
+
+snetd non si mette in mezzo al traffico e non cattura ogni pacchetto: legge i contatori di byte
+che il kernel tiene già per ogni socket di ogni processo. Non può rallentare né rompere la rete,
+e i numeri sono quelli del kernel — non una stima ricavata sniffando i pacchetti e indovinando
+poi a quale processo appartengono.
+
+**Riconciliazione con le schede di rete.** Ogni secondo snetd legge anche i contatori delle
+schede di rete (esclusi loopback, tunnel, membri di bond e altre interfacce virtuali, così niente
+è contato due volte) e li confronta con quanto spiegano le connessioni delle applicazioni,
+intestazioni dei pacchetti comprese. `snet status`, `snet list`, `snet top`, l'app (passa sul
+badge *In diretta*, o *Opzioni → Servizio snetd*) e le metriche Prometheus mostrano la quota:
+
+```
+coverage: 98.3% of the traffic on bond0 attributed to applications over the last 60 s
+```
+
+Il resto è traffico che nessun programma di questo computer possiede — altri dispositivi
+condivisi o collegati attraverso di esso, i protocolli del sistema — oppure un guasto da
+segnalare: un punto cieco non può restare nascosto.
+
+**Provato su reti reali.** `snet-qa` (nel repository open source) esegue trasferimenti noti verso
+un altro computer e confronta, byte per byte, quanto misurato. Risultati della 1.1.0 su una rete
+locale gigabit:
+
+| Scenario | macOS (NetworkStatistics) | Linux (eBPF) | Windows (ETW) |
+|---|---|---|---|
+| download di 200 MB | esatto (+0,001%) | esatto | esatto |
+| upload di 100 MB | esatto | esatto | esatto |
+| 4 download paralleli, 100 MB | +0,05% | esatto | esatto |
+| 200 connessioni da 50 kB, pochi ms ciascuna | esatto, 200/200 viste | esatto, 200/200 | esatto, 200/200 |
+| connessione lunga quasi inattiva (15 × 64 byte) | esatto | +1 byte | esatto |
+| 20 MB di UDP | esatto | esatto | esatto |
+| traffico delle schede attribuito | 94–100% | 94–100% | 96–100% |
+
+I parser che leggono i nomi dalla rete (DNS, TLS, QUIC, frame di rete) sono sottoposti a fuzzing
+con 80.000 input malformati a ogni esecuzione dei test, e CPU e memoria di snetd sono registrate
+in prove di 24 ore (`snet-qa soak`).
+
 ### Compilare dai sorgenti
 
 Lo strumento da riga di comando `snet`, il servizio `snetd` e le librerie che usano sono open
@@ -994,7 +1079,12 @@ sudo ./target/release/snetd install          # macOS e Linux
 .\target\release\snetd.exe install           # Windows, da un PowerShell amministratore
 ```
 
-`snetd uninstall` lo rimuove (`--purge` cancella anche la cronologia). Completamento della shell:
+`snetd uninstall` lo rimuove (`--purge` cancella anche la cronologia).
+
+**Verificare la precisione sulla tua rete**: avvia `snet-qa serve` su un altro computer, poi su
+questo `snet-qa run --peer ALTRO:47800` (come amministratore su Linux e Windows). Ogni scenario
+è confrontato byte per byte con quanto misurato; `snet-qa soak --name snetd --out snetd.csv`
+registra CPU e memoria nel tempo. Completamento della shell:
 `snet generate completions <bash|zsh|fish|powershell|elvish>`; pagine man: `snet generate man DIR`.
 
 ### Struttura del progetto
@@ -1007,6 +1097,7 @@ sudo ./target/release/snetd install          # macOS e Linux
 | `crates/spectranet-proto` | Protocollo tra i client e `snetd` (righe JSON su socket o named pipe) |
 | `crates/spectranet-daemon` | `snetd`: misura continua, cronologia, allarmi, azioni, installazione del servizio |
 | `crates/spectranet-cli` | `snet`: comandi, `top` a schermo intero, pagine man, completamento |
+| `crates/spectranet-qa` | `snet-qa`: prove di precisione e di durata su reti reali (vedi Affidabilità) |
 | `ebpf/` | Le sonde del kernel Linux (GPL-2.0) |
 | `data/` | L'elenco dei servizi noti, aggiornato da `snetd` da questo repository |
 

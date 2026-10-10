@@ -1056,6 +1056,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "if-addrs"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0a05c691e1fae256cf7013d99dad472dc52d5543322761f83ec8d47eab40d2b"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2414,7 +2424,7 @@ checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
 
 [[package]]
 name = "spectranet-capture"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2423,6 +2433,7 @@ dependencies = [
  "etherparse",
  "ferrisetw",
  "hkdf",
+ "if-addrs",
  "libc",
  "libloading",
  "pcap",
@@ -2436,7 +2447,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-cli"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -2463,7 +2474,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-daemon"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -2488,7 +2499,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-intel"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2499,7 +2510,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-model"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2507,11 +2518,24 @@ dependencies = [
 
 [[package]]
 name = "spectranet-proto"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "serde",
  "serde_json",
  "spectranet-model",
+]
+
+[[package]]
+name = "spectranet-qa"
+version = "1.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "spectranet-capture",
+ "spectranet-model",
+ "sysinfo",
 ]
 
 [[package]]

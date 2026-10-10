@@ -20,6 +20,7 @@ sha2 = "0.11.0"
 spectranet-model.workspace = true
 sysinfo = { version = "0.39", default-features = false, features = ["system", "user"] }
 thiserror = "2.0.21"
+if-addrs = "0.15"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6.2"
@@ -36,4 +37,4 @@ libc = "0.2.190"
 
 [target.'cfg(windows)'.dependencies]
 ferrisetw = "1.2.0"
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_WindowsFilteringPlatform", "Win32_Security", "Win32_System_Rpc", "Win32_Networking_WinSock", "Win32_System_Diagnostics_Etw", "Win32_System_Threading"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_NetworkManagement_WindowsFilteringPlatform", "Win32_Security", "Win32_System_Rpc", "Win32_Networking_WinSock", "Win32_System_Diagnostics_Etw", "Win32_System_Threading"] }

@@ -27,6 +27,8 @@ pub struct View {
     pub timestamp_ms: u64,
     pub interval_ms: u64,
     pub apps: Vec<AppTraffic>,
+    /// The interfaces' traffic, when the view shows the whole computer (no filter).
+    pub link: Option<spectranet_model::LinkTraffic>,
 }
 
 impl View {
@@ -37,6 +39,7 @@ impl View {
             timestamp_ms: self.timestamp_ms,
             interval_ms: self.interval_ms,
             processes: self.apps.into_iter().flat_map(|a| a.processes).collect(),
+            link: self.link,
         }
     }
 }
@@ -63,6 +66,13 @@ pub fn in_domain(p: &spectranet_model::ProcessTraffic, domain: crate::cli::Domai
 
 pub fn select(snapshot: Snapshot, args: &ViewArgs) -> View {
     let needle = args.name.as_deref().map(str::to_lowercase);
+    // Reconciliation with the interfaces only means something for the whole computer.
+    let whole = args.pids.is_empty()
+        && needle.is_none()
+        && !args.flagged
+        && args.domain.is_none()
+        && args.limit.is_none();
+    let link = snapshot.link.filter(|_| whole);
     let processes = snapshot
         .processes
         .into_iter()
@@ -89,6 +99,7 @@ pub fn select(snapshot: Snapshot, args: &ViewArgs) -> View {
         timestamp_ms: snapshot.timestamp_ms,
         interval_ms: snapshot.interval_ms,
         apps,
+        link,
     }
 }
 
@@ -163,10 +174,42 @@ pub fn summary(view: &View) -> String {
     } else {
         format!(" ({processes} processes)")
     };
+    let coverage = view
+        .link
+        .as_ref()
+        .and_then(|l| l.coverage())
+        .map(|c| format!(" · {}", coverage_text(c)))
+        .unwrap_or_default();
     format!(
-        "{apps}{processes} · {connections} connections · {DOWN}▼ {}{DOWN:#} {UP}▲ {}{UP:#} · {flagged}",
+        "{apps}{processes} · {connections} connections · {DOWN}▼ {}{DOWN:#} {UP}▲ {}{UP:#} · {flagged}{coverage}",
         rate(view.apps.iter().map(|a| a.rx_rate).sum()),
         rate(view.apps.iter().map(|a| a.tx_rate).sum()),
+    )
+}
+
+/// Below this share of the interfaces' traffic attributed to applications, say so loudly.
+pub const COVERAGE_WARN: f64 = 0.8;
+
+/// "97.3%", warning-coloured below [`COVERAGE_WARN`].
+pub fn coverage_percent(coverage: f64) -> String {
+    let style = if coverage < COVERAGE_WARN {
+        verdict_style(Verdict::Warn)
+    } else {
+        Style::new()
+    };
+    format!("{style}{:.1}%{style:#}", coverage * 100.0)
+}
+
+/// "97% attributed": how much of the adapters' traffic the applications account for.
+pub fn coverage_text(coverage: f64) -> String {
+    let style = if coverage < COVERAGE_WARN {
+        verdict_style(Verdict::Warn)
+    } else {
+        anstyle::Style::new().dimmed()
+    };
+    format!(
+        "{style}{:.0}% of the interfaces' traffic attributed{style:#}",
+        coverage * 100.0
     )
 }
 

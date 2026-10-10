@@ -219,6 +219,29 @@ pub struct Status {
     /// The settings of `snetd.conf` in force (absent from older services).
     #[serde(default)]
     pub settings: Option<ServiceSettings>,
+    /// How much of the network interfaces' traffic was attributed to applications recently.
+    #[serde(default)]
+    pub coverage: Option<Coverage>,
+}
+
+/// Reconciliation with the network interfaces over the last seconds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Coverage {
+    /// Length of the window.
+    pub seconds: u64,
+    /// Bytes the interfaces carried, headers included.
+    pub interface_bytes: u64,
+    /// Bytes attributed to applications' connections (payload plus estimated headers).
+    pub attributed_bytes: u64,
+    /// The interfaces counted.
+    pub interfaces: Vec<String>,
+}
+
+impl Coverage {
+    /// Share attributed, 0–1, when enough traffic went through to judge (1 MB).
+    pub fn ratio(&self) -> Option<f64> {
+        spectranet_model::coverage(self.interface_bytes, self.attributed_bytes, 1 << 20)
+    }
 }
 
 /// The service's settings (`snetd.conf`), as reported to clients and changed with

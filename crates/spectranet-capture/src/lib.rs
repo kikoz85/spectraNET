@@ -7,6 +7,7 @@ use spectranet_model::Snapshot;
 
 pub mod block;
 pub mod control;
+pub mod link;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
@@ -94,7 +95,10 @@ pub fn system_source(options: SourceOptions) -> Result<Box<dyn TrafficSource>, C
     #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
     return Err(CaptureError::Unsupported);
 
-    // CPU, memory and parentage alongside the traffic, the same on every platform.
+    // CPU, memory and parentage alongside the traffic, the same on every platform,
+    // and the interfaces' own counters next to them, to reconcile.
     #[cfg(any(target_os = "macos", target_os = "linux", windows))]
-    Ok(Box::new(resources::WithResources::new(source)))
+    Ok(Box::new(link::WithLink::new(Box::new(
+        resources::WithResources::new(source),
+    ))))
 }

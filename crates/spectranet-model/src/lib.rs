@@ -297,6 +297,54 @@ pub struct Snapshot {
     /// Length of the interval the rates were measured over.
     pub interval_ms: u64,
     pub processes: Vec<ProcessTraffic>,
+    /// What the network interfaces themselves carried, to check how much of it the
+    /// applications account for (absent from sources that can't read interface counters).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<LinkTraffic>,
+}
+
+/// Traffic on the computer's network interfaces (loopback, tunnels and other virtual
+/// interfaces left out), next to the part of it attributed to applications.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LinkTraffic {
+    /// Bytes per second received and sent by the interfaces, headers included.
+    pub rx_rate: u64,
+    pub tx_rate: u64,
+    /// The part of it carried by applications' connections: their payload plus an estimate
+    /// of the packet headers (the interfaces count those, sockets don't).
+    pub attributed_rx: u64,
+    pub attributed_tx: u64,
+    /// The interfaces counted.
+    pub interfaces: Vec<String>,
+}
+
+impl LinkTraffic {
+    /// Below this (both directions, per second) there is too little traffic to judge.
+    pub const MIN_RATE: u64 = 4_096;
+
+    /// Share of the interfaces' traffic attributed to applications, 0–1; `None` when there is
+    /// too little traffic to judge.
+    pub fn coverage(&self) -> Option<f64> {
+        coverage(
+            self.rx_rate + self.tx_rate,
+            self.attributed_rx + self.attributed_tx,
+            Self::MIN_RATE,
+        )
+    }
+
+    /// Traffic no application accounts for (other devices bridged or shared through this
+    /// computer, the system's own protocols, header estimates that fall short).
+    pub fn unattributed(&self) -> (u64, u64) {
+        (
+            self.rx_rate.saturating_sub(self.attributed_rx),
+            self.tx_rate.saturating_sub(self.attributed_tx),
+        )
+    }
+}
+
+/// `attributed / total` capped at 1, or `None` when `total` is below `min`.
+pub fn coverage(total: u64, attributed: u64, min: u64) -> Option<f64> {
+    (total >= min.max(1)).then(|| (attributed as f64 / total as f64).min(1.0))
 }
 
 impl Snapshot {

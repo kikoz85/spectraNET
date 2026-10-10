@@ -98,6 +98,17 @@ fn draw_header(frame: &mut Frame<'_>, area: Rect, state: &TopState) {
             )
         });
     }
+    if let Some(coverage) = state.coverage() {
+        let style = if coverage < crate::view::COVERAGE_WARN {
+            Style::new().fg(Color::Yellow).bold()
+        } else {
+            DIM
+        };
+        spans.push(Span::styled(
+            format!("  ·  {:.0}% attributed", coverage * 100.0),
+            style,
+        ));
+    }
     if state.tree {
         spans.push(Span::styled("  ·  tree", Style::new().fg(ACCENT)));
     }

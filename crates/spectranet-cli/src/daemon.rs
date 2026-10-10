@@ -123,6 +123,25 @@ fn render_status(s: &Status, socket: &Path) -> String {
         "alerts:   {} in the last 24 hours (snet alerts)",
         s.alerts_24h
     );
+    if let Some(c) = &s.coverage {
+        let interfaces = if c.interfaces.is_empty() {
+            "the network interfaces".to_string()
+        } else {
+            c.interfaces.join(", ")
+        };
+        let line = match c.ratio() {
+            Some(r) => format!(
+                "{} of the traffic on {interfaces} attributed to applications over the last {} s",
+                crate::view::coverage_percent(r),
+                c.seconds
+            ),
+            None => format!(
+                "too little traffic on {interfaces} in the last {} s to judge",
+                c.seconds
+            ),
+        };
+        let _ = writeln!(out, "coverage: {line}");
+    }
     if !s.feeds.is_empty() {
         let _ = writeln!(out, "reputation lists:");
         let now = std::time::SystemTime::now()
@@ -516,6 +535,7 @@ mod tests {
                     )
                 })
                 .collect(),
+            link: None,
         }
     }
 

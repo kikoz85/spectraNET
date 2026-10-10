@@ -1,0 +1,27 @@
+[package]
+name = "spectranet-qa"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+
+description = "spectraNET accuracy and endurance tests (snet-qa)"
+
+[[bin]]
+name = "snet-qa"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+spectranet-capture.workspace = true
+spectranet-model.workspace = true
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }

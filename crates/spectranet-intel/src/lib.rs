@@ -202,6 +202,7 @@ mod tests {
             timestamp_ms: 0,
             interval_ms: 1000,
             processes: vec![ProcessTraffic::new(process, flows)],
+            link: None,
         }
     }
 

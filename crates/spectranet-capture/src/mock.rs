@@ -87,6 +87,7 @@ impl MockSource {
                 .map_or(0, |d| d.as_millis() as u64),
             interval_ms: dt.as_millis() as u64,
             processes,
+            link: None,
         }
     }
 }

@@ -738,6 +738,7 @@ mod tests {
                     },
                     vec![f.clone()],
                 )],
+                link: None,
             };
             c.annotate(&mut s);
             last = s.processes[0].flows[0].meta.class.clone();
@@ -940,6 +941,7 @@ mod tests {
                     },
                     vec![f.clone()],
                 )],
+                link: None,
             };
             c.annotate(&mut s);
             last = s.processes[0].flows[0].meta.class.clone();
@@ -1059,6 +1061,7 @@ mod tests {
                 },
                 vec![flow(Transport::Tcp, "1.2.3.4:443", None)],
             )],
+            link: None,
         };
         c.annotate(&mut s);
         assert_eq!(c.history.len(), 1);

@@ -323,6 +323,7 @@ mod tests {
                 },
                 vec![flow],
             )],
+            link: None,
         }
     }
 
@@ -344,6 +345,7 @@ mod tests {
     #[test]
     fn inspect_explains_each_connection() {
         let view = view::View {
+            link: None,
             source: "t".into(),
             timestamp_ms: 0,
             interval_ms: 1000,

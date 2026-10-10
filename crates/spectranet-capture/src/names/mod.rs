@@ -13,6 +13,8 @@
 //! Nothing is ever sent on the network.
 
 pub mod dns;
+#[cfg(test)]
+mod fuzz;
 pub mod hosts;
 pub mod lan;
 #[cfg(any(target_os = "macos", target_os = "linux"))]
