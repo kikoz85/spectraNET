@@ -10,7 +10,7 @@ macOS · Linux · Windows</p>
 
 <p align="center"><a href="#english">English</a> · <a href="#italiano">Italiano</a></p>
 
-<p align="center"><a href="https://github.com/sponsors/kikoz85"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors&logoColor=white" alt="Sponsor spectraNET on GitHub"></a></p>
+<p align="center"><a href="https://www.enricofanucchi.com/en/app/spectranet?utm_source=github&utm_campaign=readme"><img src="https://img.shields.io/badge/website-enricofanucchi.com-F7941D" alt="spectraNET website"></a> <a href="https://github.com/sponsors/kikoz85"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors&logoColor=white" alt="Sponsor spectraNET on GitHub"></a></p>
 
 ![The spectraNET city](docs/screenshots/city.png)
 
