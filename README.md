@@ -352,6 +352,30 @@ Download the package for your system from the
 A portable `spectranet-<version>-windows-x86_64.zip` is also available
 (`.\snetd.exe install` from an administrator PowerShell installs the service).
 
+**Command line only** — `snet` and the `snetd` service, without the desktop app, for servers,
+terminals and scripts. One command, from the latest release (checked against its
+`SHA256SUMS.txt` before installing):
+
+```sh
+curl -fsSL https://github.com/kikoz85/spectraNET/releases/latest/download/install.sh | sh
+```
+
+```powershell
+irm https://github.com/kikoz85/spectraNET/releases/latest/download/install.ps1 | iex
+```
+
+Or the packages, from the Releases page:
+
+| System | Package | Installs |
+|---|---|---|
+| macOS | `spectranet-cli-<version>-macos-universal.pkg` | open it: `snet`, `snetd` and the man pages in `/usr/local`, service started |
+| Debian / Ubuntu | `spectranet-cli_<version>_amd64.deb` | `sudo apt install ./spectranet-cli_<version>_amd64.deb`: service started |
+| Windows | `spectranet-cli-<version>-windows-x86_64-setup.exe` | service started, `snet` on the PATH |
+| any | `spectranet-cli-<version>-<system>.tar.gz` / `.zip` | unpack, then `sudo ./snetd install` |
+
+Then `snet top` (or `snet list`, `snet status`, `man snet`). Remove with `sudo snetd uninstall`
+(Windows: *Settings → Apps*). The desktop app includes all of this: install one or the other.
+
 Without the service the app still works: it measures traffic itself (*Live · direct*), with
 fewer hostnames and no history or alerts. To just look around: `spectranet --demo`.
 
@@ -898,6 +922,31 @@ Scarica il pacchetto per il tuo sistema dalla pagina
 
 È disponibile anche lo zip portabile `spectranet-<versione>-windows-x86_64.zip`
 (`.\snetd.exe install` da un PowerShell amministratore installa il servizio).
+
+**Solo riga di comando** — `snet` e il servizio `snetd`, senza l'app desktop, per server,
+terminali e script. Un solo comando, dall'ultima release (verificata con il suo
+`SHA256SUMS.txt` prima di installare):
+
+```sh
+curl -fsSL https://github.com/kikoz85/spectraNET/releases/latest/download/install.sh | sh
+```
+
+```powershell
+irm https://github.com/kikoz85/spectraNET/releases/latest/download/install.ps1 | iex
+```
+
+Oppure i pacchetti, dalla pagina Releases:
+
+| Sistema | Pacchetto | Installa |
+|---|---|---|
+| macOS | `spectranet-cli-<versione>-macos-universal.pkg` | aprilo: `snet`, `snetd` e le pagine man in `/usr/local`, servizio avviato |
+| Debian / Ubuntu | `spectranet-cli_<versione>_amd64.deb` | `sudo apt install ./spectranet-cli_<versione>_amd64.deb`: servizio avviato |
+| Windows | `spectranet-cli-<versione>-windows-x86_64-setup.exe` | servizio avviato, `snet` nel PATH |
+| qualsiasi | `spectranet-cli-<versione>-<sistema>.tar.gz` / `.zip` | scompatta, poi `sudo ./snetd install` |
+
+Poi `snet top` (oppure `snet list`, `snet status`, `man snet`). Si rimuove con
+`sudo snetd uninstall` (Windows: *Impostazioni → App*). L'app desktop comprende già tutto
+questo: installa l'una o l'altra.
 
 Senza il servizio l'app funziona comunque: misura il traffico da sola (*In diretta ·
 diretta*), con meno nomi e senza cronologia né allarmi. Per dare solo un'occhiata:

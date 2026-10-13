@@ -12,6 +12,9 @@ use anyhow::{Context, Result, bail, ensure};
 
 pub const DAEMON_BIN: &str = "/usr/local/sbin/snetd";
 pub const CLI_BIN: &str = "/usr/local/bin/snet";
+/// `snetd` on every user's PATH: /usr/local/sbin is not on macOS's default PATH, nor on a
+/// normal user's on Debian, so `sudo snetd uninstall` would not be found otherwise.
+pub const DAEMON_LINK: &str = "/usr/local/bin/snetd";
 pub const MAN1: &str = "/usr/local/share/man/man1";
 pub const MAN8: &str = "/usr/local/share/man/man8";
 pub const DATA_DIR: &str = spectranet_proto::DEFAULT_DATA_DIR;
@@ -197,6 +200,7 @@ pub fn install() -> Result<()> {
 
     copy_executable(&here, Path::new(DAEMON_BIN))?;
     println!("installed {DAEMON_BIN}");
+    link_daemon()?;
     let cli = dir.join("snet");
     if cli.exists() {
         copy_executable(&cli, Path::new(CLI_BIN))?;
@@ -232,6 +236,9 @@ pub fn uninstall(purge: bool) -> Result<()> {
     require_root()?;
     platform::stop();
     let mut removed = Vec::new();
+    if is_our_link(Path::new(DAEMON_LINK)) && remove_if_present(Path::new(DAEMON_LINK))? {
+        removed.push(DAEMON_LINK.to_string());
+    }
     for path in [
         SERVICE_FILE,
         DAEMON_BIN,
@@ -286,6 +293,28 @@ fn install_man_pages(cli: &Path) -> Result<()> {
         println!("installed snet man pages in {MAN1}");
     }
     Ok(())
+}
+
+/// Puts `snetd` on the PATH as a link to the installed service binary (a file of the same
+/// name that is not our link is left alone).
+fn link_daemon() -> Result<()> {
+    let link = Path::new(DAEMON_LINK);
+    if let Some(dir) = link.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    if link.symlink_metadata().is_ok() && !is_our_link(link) {
+        println!("note: {DAEMON_LINK} exists and is not ours; left as it is");
+        return Ok(());
+    }
+    let _ = std::fs::remove_file(link);
+    std::os::unix::fs::symlink(DAEMON_BIN, link)
+        .with_context(|| format!("linking {DAEMON_LINK}"))?;
+    println!("linked {DAEMON_LINK} → {DAEMON_BIN}");
+    Ok(())
+}
+
+fn is_our_link(path: &Path) -> bool {
+    std::fs::read_link(path).is_ok_and(|target| target == Path::new(DAEMON_BIN))
 }
 
 /// Copies to a temporary name, then renames: a running binary is never half-written.
