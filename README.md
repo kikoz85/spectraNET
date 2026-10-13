@@ -29,6 +29,13 @@ program on the computer and presents it three ways:
 | **`snet`** | the command-line tool, in the tradition of `top`, `nettop` and `ntop`, with man pages |
 | **`snetd`** | the background service: continuous measurement, hostnames, history, alerts |
 
+**Open source command line, free app.** `snet` and `snetd` are **open source** (MIT OR
+Apache-2.0): their code is in [the public repository](https://github.com/kikoz85/spectraNET),
+and they are also released **on their own**, as the *command-line-only* packages — for servers,
+terminals and scripts ([Install](#install)). The desktop app is free to download and use, but
+its code is not published; it is distributed as ready-made packages and includes the command
+line and the service.
+
 Everything is measured locally. spectraNET never decrypts or uploads your traffic; the only
 things it downloads are public threat-intelligence lists.
 
@@ -353,7 +360,8 @@ A portable `spectranet-<version>-windows-x86_64.zip` is also available
 (`.\snetd.exe install` from an administrator PowerShell installs the service).
 
 **Command line only** — `snet` and the `snetd` service, without the desktop app, for servers,
-terminals and scripts. One command, from the latest release (checked against its
+terminals and scripts. This is the open-source part of spectraNET (MIT OR Apache-2.0): the same
+programs can also be [built from source](#building-from-source). One command, from the latest release (checked against its
 `SHA256SUMS.txt` before installing):
 
 ```sh
@@ -611,6 +619,13 @@ del computer e la presenta in tre modi:
 | **`spectranet`** | l'app desktop: la rete disegnata come una città 2.5D animata, con le vere icone delle app, spiegazioni in parole semplici e una guida integrata |
 | **`snet`** | lo strumento da riga di comando, nella tradizione di `top`, `nettop` e `ntop`, con le pagine man |
 | **`snetd`** | il servizio in background: misura continua, nomi degli host, cronologia, allarmi |
+
+**Riga di comando open source, app gratuita.** `snet` e `snetd` sono **open source** (MIT OR
+Apache-2.0): il loro codice è nel [repository pubblico](https://github.com/kikoz85/spectraNET), e
+sono distribuiti anche **da soli**, come pacchetti *solo riga di comando* — per server, terminali
+e script ([Installazione](#installazione)). L'app desktop si scarica e si usa gratuitamente, ma il
+suo codice non è pubblicato; è distribuita come pacchetti pronti e comprende già la riga di
+comando e il servizio.
 
 Tutto viene misurato in locale. spectraNET non decifra né invia mai il tuo traffico; le uniche
 cose che scarica sono le liste pubbliche di threat intelligence.
@@ -924,7 +939,8 @@ Scarica il pacchetto per il tuo sistema dalla pagina
 (`.\snetd.exe install` da un PowerShell amministratore installa il servizio).
 
 **Solo riga di comando** — `snet` e il servizio `snetd`, senza l'app desktop, per server,
-terminali e script. Un solo comando, dall'ultima release (verificata con il suo
+terminali e script. È la parte open source di spectraNET (MIT OR Apache-2.0): gli stessi
+programmi si possono anche [compilare dai sorgenti](#compilare-dai-sorgenti). Un solo comando, dall'ultima release (verificata con il suo
 `SHA256SUMS.txt` prima di installare):
 
 ```sh
