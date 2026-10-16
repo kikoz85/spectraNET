@@ -16,6 +16,11 @@
 //! feeds_disabled = ["tor-exits"]
 //! # Days of usage history to keep (default: 0, everything).
 //! history_days = 365
+//! # Internet targets of `snet check` (default: 1.1.1.1 and 9.9.9.9).
+//! check_targets = ["1.1.1.1", "9.9.9.9"]
+//! # Alert when the internet latency stays high for this many minutes (default: 0, off;
+//! # snetd then pings the targets briefly every minute).
+//! latency_watch_minutes = 5
 //! ```
 //!
 //! A missing file means the defaults; a broken one is reported and ignored, so a typo never
@@ -42,6 +47,8 @@ struct Raw {
     feed_updates: Option<bool>,
     feeds_disabled: Option<Vec<String>>,
     history_days: Option<u32>,
+    check_targets: Option<Vec<String>>,
+    latency_watch_minutes: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +59,8 @@ pub struct FileConfig {
     pub feed_updates: bool,
     pub feeds_disabled: Vec<String>,
     pub history_days: u32,
+    pub check_targets: Vec<String>,
+    pub latency_watch_minutes: u32,
 }
 
 impl Default for FileConfig {
@@ -63,6 +72,8 @@ impl Default for FileConfig {
             feed_updates: true,
             feeds_disabled: Vec::new(),
             history_days: 0,
+            check_targets: Vec::new(),
+            latency_watch_minutes: 0,
         }
     }
 }
@@ -77,6 +88,8 @@ impl FileConfig {
             feed_updates: self.feed_updates,
             feeds_disabled: self.feeds_disabled.clone(),
             history_days: self.history_days,
+            check_targets: self.check_targets.clone(),
+            latency_watch_minutes: self.latency_watch_minutes,
         }
     }
 
@@ -94,7 +107,9 @@ impl FileConfig {
              category_updates = {}\n\
              feed_updates = {}\n\
              feeds_disabled = [{}]\n\
-             history_days = {}\n",
+             history_days = {}\n\
+             check_targets = [{}]\n\
+             latency_watch_minutes = {}\n",
             if self.actions_elevated_only {
                 "elevated-only"
             } else {
@@ -106,6 +121,12 @@ impl FileConfig {
             self.feed_updates,
             quoted.join(", "),
             self.history_days,
+            self.check_targets
+                .iter()
+                .map(|t| format!("\"{t}\""))
+                .collect::<Vec<_>>()
+                .join(", "),
+            self.latency_watch_minutes,
         )
     }
 
@@ -152,10 +173,26 @@ impl FileConfig {
                         .map_err(|_| format!("history_days = {value}: expected a number"))?,
                 )?
             }
+            "check_targets" => {
+                self.check_targets = parse_targets(
+                    value
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(String::from)
+                        .collect(),
+                )?
+            }
+            "latency_watch_minutes" => {
+                self.latency_watch_minutes =
+                    parse_watch(value.parse().map_err(|_| {
+                        format!("latency_watch_minutes = {value}: expected a number")
+                    })?)?
+            }
             _ => {
                 return Err(format!(
                     "unknown setting '{key}' (actions, metrics, category_updates, feed_updates, \
-                     feeds_disabled, history_days)"
+                     feeds_disabled, history_days, check_targets, latency_watch_minutes)"
                 ));
             }
         }
@@ -217,7 +254,40 @@ pub fn parse(text: &str) -> Result<FileConfig, String> {
         feed_updates: raw.feed_updates.unwrap_or(true),
         feeds_disabled: parse_feeds(raw.feeds_disabled.unwrap_or_default())?,
         history_days: parse_days(raw.history_days.unwrap_or(0))?,
+        check_targets: parse_targets(raw.check_targets.unwrap_or_default())?,
+        latency_watch_minutes: parse_watch(raw.latency_watch_minutes.unwrap_or(0))?,
     })
+}
+
+/// Internet targets: host names or addresses, a few at most.
+fn parse_targets(targets: Vec<String>) -> Result<Vec<String>, String> {
+    if targets.len() > 8 {
+        return Err("check_targets: at most 8 targets".into());
+    }
+    for t in &targets {
+        let ok = t.parse::<std::net::IpAddr>().is_ok()
+            || (!t.is_empty()
+                && t.len() <= 253
+                && t.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'));
+        if !ok {
+            return Err(format!(
+                "check_targets: '{t}' is not a host name or address"
+            ));
+        }
+    }
+    Ok(targets)
+}
+
+/// Minutes of high latency before the watch alerts (0: off), at most a day.
+fn parse_watch(minutes: u32) -> Result<u32, String> {
+    if minutes > 1440 {
+        Err(format!(
+            "latency_watch_minutes = {minutes}: at most 1440 (0 turns the watch off)"
+        ))
+    } else {
+        Ok(minutes)
+    }
 }
 
 /// Reads `snetd.conf` from the data directory; defaults if absent or broken.
@@ -312,6 +382,8 @@ mod tests {
             "feed_updates=false",
             "feeds_disabled=tor-exits, feodo",
             "history_days=90",
+            "check_targets=1.1.1.1, dns.google",
+            "latency_watch_minutes=5",
         ] {
             c.set(pair).unwrap();
         }

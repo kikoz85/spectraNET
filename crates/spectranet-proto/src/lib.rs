@@ -78,6 +78,17 @@ pub enum Command {
     Blocks,
     /// Actions taken in the last `since_s` seconds, newest first, at most `limit`.
     Audit { since_s: u64, limit: u32 },
+    /// "Is my network slow?": measure the router, the internet targets (the configured ones
+    /// when empty) and DNS, next to the applications' traffic, and give a verdict. Takes about
+    /// ten seconds (more with `path`). Answered with [`Reply::Check`]; recorded.
+    Check {
+        #[serde(default)]
+        targets: Vec<String>,
+        #[serde(default)]
+        path: bool,
+    },
+    /// The latest recorded checks, newest first, at most `limit`.
+    Checks { limit: u32 },
 }
 
 /// Something the service may do on a client's behalf. Every action is checked against the
@@ -169,6 +180,10 @@ pub struct Response {
 pub enum Reply {
     Status(Status),
     Snapshot(Snapshot),
+    Check(Box<spectranet_probe::Report>),
+    Checks {
+        reports: Vec<spectranet_probe::Report>,
+    },
     History {
         rows: Vec<UsageRow>,
     },
@@ -260,6 +275,13 @@ pub struct ServiceSettings {
     pub feeds_disabled: Vec<String>,
     /// Days of usage history kept; 0 keeps everything.
     pub history_days: u32,
+    /// Internet targets of the network check (empty: 1.1.1.1 and 9.9.9.9).
+    #[serde(default)]
+    pub check_targets: Vec<String>,
+    /// Alert when the internet latency stays high for this many minutes (0: off). snetd
+    /// then pings the targets briefly every minute.
+    #[serde(default)]
+    pub latency_watch_minutes: u32,
 }
 
 impl Default for ServiceSettings {
@@ -271,6 +293,8 @@ impl Default for ServiceSettings {
             feed_updates: true,
             feeds_disabled: Vec::new(),
             history_days: 0,
+            check_targets: Vec::new(),
+            latency_watch_minutes: 0,
         }
     }
 }
@@ -432,6 +456,11 @@ impl Client {
             reader: self.reader,
             _writer: self.writer,
         })
+    }
+
+    /// How long to wait for an answer from now on (a network check takes seconds).
+    pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), ClientError> {
+        (self.set_read_timeout)(Some(timeout)).map_err(ClientError::Io)
     }
 
     /// Sends a command and returns the reply; service-side errors become `Protocol`.

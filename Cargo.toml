@@ -4,6 +4,7 @@ members = [
     "crates/spectranet-model",
     "crates/spectranet-capture",
     "crates/spectranet-intel",
+    "crates/spectranet-probe",
     "crates/spectranet-proto",
     "crates/spectranet-daemon",
     "crates/spectranet-cli",
@@ -11,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2024"
 rust-version = "1.88"
 authors = ["kikoz85"]
@@ -24,6 +25,7 @@ spectranet-model = { path = "crates/spectranet-model" }
 spectranet-capture = { path = "crates/spectranet-capture" }
 spectranet-proto = { path = "crates/spectranet-proto" }
 spectranet-intel = { path = "crates/spectranet-intel" }
+spectranet-probe = { path = "crates/spectranet-probe" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

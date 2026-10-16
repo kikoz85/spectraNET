@@ -59,7 +59,9 @@ pub enum ConfigAction {
     /// Change settings and restart the service, e.g. `snetd config set history_days=90`.
     /// Keys: actions (elevated-only | allowed-users), metrics (ADDRESS | off),
     /// category_updates, feed_updates (true | false), feeds_disabled (comma-separated ids:
-    /// feodo, spamhaus-drop, spamhaus-dropv6, tor-exits), history_days (0 = keep everything)
+    /// feodo, spamhaus-drop, spamhaus-dropv6, tor-exits), history_days (0 = keep everything),
+    /// check_targets (comma-separated hosts measured by `snet check`; empty = 1.1.1.1 and
+    /// 9.9.9.9), latency_watch_minutes (alert after N minutes of high latency; 0 = off)
     Set {
         #[arg(required = true, value_name = "KEY=VALUE")]
         pairs: Vec<String>,

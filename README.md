@@ -69,6 +69,7 @@ distributed**:
 - [Radio & satellites](#radio--satellites)
 - [Alerts](#alerts)
 - [History](#history)
+- [Is my network slow?](#is-my-network-slow)
 - [Guide and first-run introduction](#guide-and-first-run-introduction)
 - [Languages](#languages)
 - [Runs everywhere](#runs-everywhere)
@@ -268,6 +269,7 @@ which app and address, **why it matters** and what to do. Rules:
 | Unencrypted traffic | HTTP, FTP, Telnet and similar to the internet |
 | First connection | a program contacted a destination for the first time |
 | Beaconing / heavy upload | found by `snet record` + `snet analyze` (clockwork check-ins, upload-dominated traffic) |
+| High latency | the internet stayed much slower than usual for N minutes (optional, see [Is my network slow?](#is-my-network-slow)) |
 
 The panel on the right shows the threat-intelligence lists loaded by the service and when they
 were last updated.
@@ -280,6 +282,43 @@ The snetd service counts every byte per application and per day, even when the a
 The History view shows the last 7 or 30 days: period total, busiest day, daily average, a
 day-by-day chart (download and upload stacked, hover for exact numbers) and the applications
 that used the most.
+
+### Is my network slow?
+
+![Is my network slow? An application filling the connection](docs/screenshots/netcheck.png)
+
+The **Is my network slow?** button next to Download and Upload answers in about five seconds,
+with one plain verdict first:
+
+| Verdict | When |
+|---|---|
+| ✅ **All good** | router, internet and DNS answer normally, no application fills the line |
+| 🐢 **It's the link to the router** (Wi-Fi or cable) | the router loses more than 2% of the pings or answers in more than 30 ms |
+| 🐢 **It's the line, past the router** (line or provider) | the router is fine, but every internet server loses more than 2% or answers much slower than usual (twice the usual latency and 40 ms more; 150 ms when the usual one isn't known yet) |
+| ⚠️ **DNS is slow** | everything answers, but a name takes more than 300 ms to resolve |
+| ⚠️ **It's *app X*** | the network is fine, but one application uses more than 80% of a busy connection |
+
+Router, internet servers (1.1.1.1 and 9.9.9.9 unless configured otherwise) and DNS are measured
+in parallel: minimum, average and maximum round trip, jitter and loss. Each latency says how it
+was measured: **ICMP** (ping, without privileges: macOS, Linux with the usual
+`ping_group_range`, Windows' ICMP API) or **TCP · port** where ICMP is not available (the time
+to open a connection, a little higher than a ping). A measurement that can't be made is shown as
+*not measurable*, never as an error. DNS is timed with names no cache knows, so the time is the
+DNS server's. **Show the path** lists every router on the way, hop by hop, like mtr.
+
+When an application is to blame it is highlighted in the city, with *Pause* and *Block* one
+click away. With the snetd service the check runs there: it compares the latency with the usual
+one (last 24 hours), the traffic with the recent peak, and keeps every result (`snet check
+--history`). Optionally (*Options → snetd service*, off by default) the service pings the
+servers once a minute and raises a **High latency** alert when it stays high for N minutes.
+
+Only the router, the chosen servers and the system's DNS are contacted, and only during a
+check; nothing is sent anywhere else.
+
+From a terminal: `snet check` (alias `snet slow`) — exit status 0 all good, 1 a problem was
+found, 2 nothing could be measured.
+
+![snet check: an application filling the connection](docs/screenshots/cli-check-app.png)
 
 ### Guide and first-run introduction
 
@@ -399,7 +438,7 @@ The gear at the top right (or <kbd>⌘</kbd> <kbd>,</kbd> / <kbd>Ctrl</kbd> <kbd
 | **Units & data** | speeds in bytes (MB/s) or bits (Mbit/s), the network interface, the Flight Recorder folder |
 | **Notifications** | desktop notifications for alerts, warnings and apps connecting for the first time |
 | **Updates** | automatic checks, updating the service by itself |
-| **snetd service** | status, who may act on apps, threat lists, history kept, Prometheus metrics, reinstall or remove |
+| **snetd service** | status, who may act on apps, threat lists, history kept, Prometheus metrics, the servers measured by *Is my network slow?* and the high-latency alert, reinstall or remove |
 | **Advanced** | data folders, restore default settings |
 
 ![Options: city and graphics](docs/screenshots/options.png)
@@ -433,6 +472,8 @@ app, in the guide and in *About spectraNET*.
 
 ```sh
 snet top                      # interactive full-screen view (press ? for keys, f for flows)
+snet check                    # is my network slow? router, internet, DNS, apps: one verdict
+snet check --path --json      # …with the path hop by hop, as JSON (alias: snet slow)
 snet stream --name chrome     # what kind of traffic each connection carries, as it is recognised
 snet inspect --pid 4102       # a process's network profile: kinds, protocols, TLS, JA4
 snet list --domain radio      # software-defined radio and satellite programs only
@@ -460,6 +501,8 @@ Every command is documented in its man page: `man snet`, `man snet-list`, `man s
 ![snet inspect: the network profile of an application](docs/screenshots/cli-inspect.png)
 
 ![snet stream: what each connection carries, as it is recognised](docs/screenshots/cli-stream.png)
+
+![snet check --path: all good, and the path hop by hop](docs/screenshots/cli-check.png)
 
 ### Prometheus metrics
 
@@ -591,6 +634,7 @@ snetd.csv` records CPU and memory over time. Shell completions:
 | `crates/spectranet-model` | Data types shared by every component (snapshot, process, flow) |
 | `crates/spectranet-capture` | Traffic sources: macOS (NetworkStatistics), Linux (eBPF), Windows (ETW), name discovery, simulator |
 | `crates/spectranet-intel` | Traffic classification, security rules, reputation lists, Flight Recorder analysis |
+| `crates/spectranet-probe` | *Is my network slow?*: router, internet, DNS and path measurements, the verdict |
 | `crates/spectranet-proto` | Protocol between clients and `snetd` (JSON lines over a socket or named pipe) |
 | `crates/spectranet-daemon` | `snetd`: continuous sampling, history, alerts, actions, service installation |
 | `crates/spectranet-cli` | `snet`: commands, full-screen `top`, man pages, completions |
@@ -661,6 +705,7 @@ distribuita**:
 - [Radio e satelliti](#radio-e-satelliti)
 - [Allarmi](#allarmi)
 - [Cronologia](#cronologia)
+- [La rete è lenta?](#la-rete-è-lenta)
 - [Guida e introduzione al primo avvio](#guida-e-introduzione-al-primo-avvio)
 - [Lingue](#lingue)
 - [Su ogni sistema](#su-ogni-sistema)
@@ -861,12 +906,52 @@ che il servizio ha notato negli ultimi 7 giorni, filtrabile per gravità. Ogni s
 | Traffico non cifrato | HTTP, FTP, Telnet e simili verso internet |
 | Prima connessione | un programma ha contattato una destinazione per la prima volta |
 | Beaconing / upload pesante | trovati da `snet record` + `snet analyze` (contatti a orologeria, traffico dominato dall'upload) |
+| Latenza alta | internet è rimasto molto più lento del solito per N minuti (facoltativo, vedi [La rete è lenta?](#la-rete-è-lenta)) |
 
 ### Cronologia
 
 Il servizio snetd conta ogni byte per applicazione e per giorno, anche quando l'app è chiusa.
 La vista Cronologia mostra gli ultimi 7 o 30 giorni: totale del periodo, giorno più intenso,
 media giornaliera, il grafico giorno per giorno e le applicazioni che hanno consumato di più.
+
+### La rete è lenta?
+
+![La rete è lenta? Un'applicazione che satura la connessione](docs/screenshots/netcheck-it.png)
+
+Il pulsante **La rete è lenta?** accanto a Download e Upload risponde in circa cinque secondi,
+con prima di tutto un verdetto semplice:
+
+| Verdetto | Quando |
+|---|---|
+| ✅ **Tutto ok** | router, internet e DNS rispondono normalmente e nessuna applicazione satura la linea |
+| 🐢 **È la linea tra computer e router** (Wi-Fi o cavo) | il router perde più del 2% dei ping o risponde in più di 30 ms |
+| 🐢 **È la linea dopo il router** (linea o provider) | il router va bene, ma tutti i server internet perdono più del 2% o rispondono molto più lentamente del solito (il doppio della latenza abituale e 40 ms in più; 150 ms finché quella abituale non è nota) |
+| ⚠️ **Il DNS è lento** | tutto risponde, ma risolvere un nome richiede più di 300 ms |
+| ⚠️ **È l'*app X*** | la rete va bene, ma un'applicazione usa più dell'80% di una connessione piena |
+
+Router, server internet (1.1.1.1 e 9.9.9.9 salvo configurazione diversa) e DNS sono misurati in
+parallelo: andata e ritorno minima, media e massima, jitter e perdita. Ogni latenza dice come è
+stata misurata: **ICMP** (ping, senza privilegi: macOS, Linux con il consueto
+`ping_group_range`, l'API ICMP di Windows) oppure **TCP · porta** dove ICMP non è disponibile
+(il tempo per aprire una connessione, un po' più alto di un ping). Una misura impossibile appare
+come *non misurabile*, mai come errore. Il DNS è cronometrato con nomi che nessuna cache
+conosce, quindi il tempo è quello del server DNS. **Mostra percorso** elenca ogni router lungo
+la strada, hop per hop, come mtr.
+
+Quando la colpa è di un'applicazione, questa viene evidenziata nella città, con *Metti in
+pausa* e *Blocca* a un clic. Con il servizio snetd il controllo lo esegue il servizio: confronta
+la latenza con quella abituale (ultime 24 ore) e il traffico con il picco recente, e conserva
+ogni risultato (`snet check --history`). Facoltativamente (*Opzioni → Servizio snetd*, spento
+per default) il servizio fa un ping ai server una volta al minuto e genera un allarme **Latenza
+alta** quando resta alta per N minuti.
+
+Vengono contattati solo il router, i server scelti e il DNS di sistema, e solo durante un
+controllo; nient'altro viene inviato.
+
+Dal terminale: `snet check` (alias `snet slow`) — codice di uscita 0 tutto ok, 1 problema
+rilevato, 2 nulla di misurabile.
+
+![snet check: un'applicazione che satura la connessione](docs/screenshots/cli-check-app.png)
 
 ### Guida e introduzione al primo avvio
 
@@ -980,7 +1065,7 @@ le **Opzioni**, tutte le impostazioni in un posto solo:
 | **Unità e dati** | velocità in byte (MB/s) o bit (Mbit/s), interfaccia di rete, cartella del Flight Recorder |
 | **Notifiche** | notifiche sul desktop per allarmi, avvisi e app che si collegano per la prima volta |
 | **Aggiornamenti** | controlli automatici, aggiornamento automatico del servizio |
-| **Servizio snetd** | stato, chi può agire sulle app, liste di minacce, cronologia conservata, metriche Prometheus, reinstalla o rimuovi |
+| **Servizio snetd** | stato, chi può agire sulle app, liste di minacce, cronologia conservata, metriche Prometheus, i server misurati da *La rete è lenta?* e l'allarme di latenza alta, reinstalla o rimuovi |
 | **Avanzate** | cartelle dei dati, ripristino delle impostazioni predefinite |
 
 ![Opzioni: città e grafica](docs/screenshots/options.png)
@@ -1014,6 +1099,8 @@ nell'app, nella guida e in *Informazioni su spectraNET*.
 
 ```sh
 snet top                      # vista interattiva a tutto schermo (? per i tasti, f per i flussi)
+snet check                    # la rete è lenta? router, internet, DNS, app: un verdetto
+snet check --path --json      # …con il percorso hop per hop, in JSON (alias: snet slow)
 snet stream --name chrome     # che tipo di traffico porta ogni connessione, appena riconosciuto
 snet inspect --pid 4102       # profilo di rete di un processo: tipi, protocolli, TLS, JA4
 snet list --domain radio      # solo i programmi di radio software e satelliti
@@ -1039,6 +1126,8 @@ Ogni comando è documentato nella sua pagina man: `man snet`, `man snet-list`, `
 ![snet inspect: il profilo di rete di un'applicazione](docs/screenshots/cli-inspect.png)
 
 ![snet stream: che cosa trasporta ogni connessione, man mano che viene riconosciuta](docs/screenshots/cli-stream.png)
+
+![snet check --path: tutto ok, e il percorso hop per hop](docs/screenshots/cli-check.png)
 
 ### Metriche Prometheus
 
@@ -1159,6 +1248,7 @@ registra CPU e memoria nel tempo. Completamento della shell:
 | `crates/spectranet-model` | Tipi di dati condivisi da tutti i componenti (istantanea, processo, flusso) |
 | `crates/spectranet-capture` | Sorgenti del traffico: macOS (NetworkStatistics), Linux (eBPF), Windows (ETW), scoperta dei nomi, simulatore |
 | `crates/spectranet-intel` | Classificazione del traffico, regole di sicurezza, liste di reputazione, analisi del Flight Recorder |
+| `crates/spectranet-probe` | *La rete è lenta?*: misure di router, internet, DNS e percorso, il verdetto |
 | `crates/spectranet-proto` | Protocollo tra i client e `snetd` (righe JSON su socket o named pipe) |
 | `crates/spectranet-daemon` | `snetd`: misura continua, cronologia, allarmi, azioni, installazione del servizio |
 | `crates/spectranet-cli` | `snet`: comandi, `top` a schermo intero, pagine man, completamento |

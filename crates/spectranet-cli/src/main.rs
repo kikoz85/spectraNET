@@ -1,5 +1,6 @@
 //! `snet` — the spectraNET command-line interface.
 
+mod check;
 mod cli;
 mod daemon;
 mod duration;
@@ -33,6 +34,9 @@ fn main() -> ExitCode {
         ColorWhen::Never => anstream::ColorChoice::Never.write_global(),
     }
 
+    if let Command::Check(args) = &cli.command {
+        return ExitCode::from(check::run(&cli, args) as u8);
+    }
     let result = match &cli.command {
         Command::List(args) => {
             open_source(&cli).and_then(|mut source| list(source.as_mut(), &args.view))
@@ -104,6 +108,7 @@ fn main() -> ExitCode {
         }
         Command::Analyze(args) => recorder::analyze(args),
         Command::Generate(args) => generate(&args.what),
+        Command::Check(_) => unreachable!("handled above"),
     };
 
     match result {

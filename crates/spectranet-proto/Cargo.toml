@@ -13,5 +13,6 @@ workspace = true
 
 [dependencies]
 spectranet-model.workspace = true
+spectranet-probe.workspace = true
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

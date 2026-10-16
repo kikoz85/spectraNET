@@ -56,6 +56,10 @@ pub struct Config {
     pub history_days: u32,
     /// The settings file as read, reported to clients.
     pub settings: spectranet_proto::ServiceSettings,
+    /// Internet targets of the network check (empty: the defaults).
+    pub check_targets: Vec<String>,
+    /// Minutes of high internet latency before alerting (0: no watch).
+    pub latency_watch_minutes: u32,
 }
 
 struct Shared {
@@ -87,6 +91,9 @@ struct Shared {
     /// The last minute of reconciliation with the interfaces: (interface bytes, attributed
     /// bytes) per sample, and the interfaces of the latest sample.
     coverage: Mutex<CoverageWindow>,
+    /// The usual latency, the recent traffic peak and the watch's state.
+    network: crate::netcheck::SharedMemory,
+    check_targets: Vec<String>,
 }
 
 /// (interface bytes, attributed bytes) per sample, and the interfaces of the latest one.
@@ -100,6 +107,16 @@ pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBoo
     let mut store = Store::open(&config.database)?;
     let baseline_until = store.prepare_alerts(unix_now())?;
     store.prepare_actions(unix_now())?;
+    store.prepare_checks()?;
+    // The usual latency picks up where the last day's checks left it.
+    let mut network = crate::netcheck::Memory::default();
+    for report in store.checks(100).unwrap_or_default() {
+        if report.started_ms / 1000 + 86_400 > unix_now()
+            && let Some(ms) = crate::netcheck::internet_ms(&report)
+        {
+            network.add_latency(ms);
+        }
+    }
     let blocks = crate::blocks::Blocks::restore(&store, unix_now());
     let watchdog =
         Watchdog::new(store.seen_apps()?, baseline_until).with_fingerprints(store.fingerprints()?);
@@ -130,6 +147,8 @@ pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBoo
         feeds_disabled: config.feeds_disabled.clone(),
         history_days: config.history_days,
         coverage: Mutex::new((VecDeque::new(), Vec::new())),
+        network: Mutex::new(network),
+        check_targets: config.check_targets.clone(),
     });
     prune_history(&shared);
     for notice in &shared.notices {
@@ -141,6 +160,14 @@ pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBoo
         config.interval,
         config.socket.display()
     ));
+
+    if config.latency_watch_minutes > 0 {
+        let shared = shared.clone();
+        let minutes = config.latency_watch_minutes;
+        thread::Builder::new()
+            .name("snetd-latency".into())
+            .spawn(move || watch_latency(&shared, minutes))?;
+    }
 
     if config.update_feeds {
         let shared = shared.clone();
@@ -292,6 +319,9 @@ fn sample_loop(
                     && let Ok(mut metrics) = shared.metrics.lock()
                 {
                     metrics.observe(&snapshot);
+                }
+                if let Ok(mut network) = shared.network.lock() {
+                    network.add_traffic(snapshot.rx_rate() + snapshot.tx_rate());
                 }
                 if let Ok(mut latest) = shared.latest.lock() {
                     *latest = (latest.0 + 1, Some(snapshot));
@@ -510,8 +540,106 @@ fn stream_snapshots(writer: &mut dyn Write, shared: &Shared) -> io::Result<()> {
     }
 }
 
+/// Every minute, a few pings to the check targets; alerts when the internet latency has been
+/// high for `minutes` in a row (the same rule as the check).
+fn watch_latency(shared: &Shared, minutes: u32) {
+    let thresholds = spectranet_probe::Thresholds::default();
+    loop {
+        thread::sleep(Duration::from_secs(60));
+        if shared.stopping.load(Ordering::SeqCst) {
+            return;
+        }
+        let measured = crate::netcheck::watch_once(&shared.check_targets);
+        let Ok(mut network) = shared.network.lock() else {
+            continue;
+        };
+        let usual = network.baseline();
+        let high = match (measured, usual) {
+            (None, _) => true,
+            (Some(ms), Some(u)) => {
+                ms > u * thresholds.internet_factor && ms > u + thresholds.internet_margin_ms
+            }
+            (Some(ms), None) => ms > thresholds.internet_latency_ms,
+        };
+        if let Some(ms) = measured {
+            network.add_latency(ms);
+        }
+        if network.watch_minute(high, minutes) {
+            let event = crate::netcheck::latency_alert(
+                unix_now(),
+                minutes,
+                measured.unwrap_or(f64::NAN),
+                usual,
+            );
+            log(&format!("warn: {}", event.message));
+            if let Ok(store) = shared.store.lock()
+                && let Err(e) = store.record_alert(&event)
+            {
+                log(&format!("recording the latency alert failed: {e:#}"));
+            }
+        }
+    }
+}
+
+/// Runs a network check here, with the applications' traffic and the usual latency.
+fn run_check(shared: &Shared, targets: Vec<String>, path: bool) -> spectranet_probe::Report {
+    let targets = if targets.is_empty() {
+        shared.check_targets.clone()
+    } else {
+        targets
+    };
+    let (usual, peak) = shared
+        .network
+        .lock()
+        .map(|n| (n.baseline(), n.peak()))
+        .unwrap_or((None, None));
+    let config = spectranet_probe::check::Config {
+        targets,
+        path,
+        ..Default::default()
+    };
+    let report = spectranet_probe::check::run(
+        &config,
+        |window| {
+            let snapshots = crate::netcheck::collect(window, || {
+                let guard = shared.latest.lock().ok()?;
+                let (seq, snapshot) = &*guard;
+                snapshot.clone().map(|s| (*seq, s))
+            });
+            spectranet_probe::apps::from_snapshots(&snapshots, peak)
+        },
+        usual,
+        |_| {},
+    );
+    if let Some(ms) = crate::netcheck::internet_ms(&report)
+        && let Ok(mut network) = shared.network.lock()
+    {
+        network.add_latency(ms);
+    }
+    if let Ok(store) = shared.store.lock()
+        && let Err(e) = store.record_check(&report)
+    {
+        log(&format!("recording the network check failed: {e:#}"));
+    }
+    report
+}
+
 fn answer(command: Command, shared: &Shared, peer: &crate::transport::Peer) -> Reply {
     match command {
+        Command::Check { targets, path } => {
+            Reply::Check(Box::new(run_check(shared, targets, path)))
+        }
+        Command::Checks { limit } => {
+            match shared.store.lock().map(|s| s.checks(limit.clamp(1, 100))) {
+                Ok(Ok(reports)) => Reply::Checks { reports },
+                Ok(Err(e)) => Reply::Error {
+                    message: format!("reading the checks: {e:#}"),
+                },
+                Err(_) => Reply::Error {
+                    message: "store unavailable".into(),
+                },
+            }
+        }
         Command::Status => Reply::Status(Status {
             version: env!("CARGO_PKG_VERSION").to_string(),
             pid: std::process::id(),
@@ -773,6 +901,8 @@ mod tests {
                 feeds_disabled: Vec::new(),
                 history_days: 0,
                 settings: Default::default(),
+                check_targets: Vec::new(),
+                latency_watch_minutes: 0,
             };
             let stop = Arc::new(AtomicBool::new(false));
             let handle = {
@@ -1043,6 +1173,8 @@ mod tests {
             feeds_disabled: Vec::new(),
             history_days: 0,
             settings: Default::default(),
+            check_targets: Vec::new(),
+            latency_watch_minutes: 0,
         };
         let stop = Arc::new(AtomicBool::new(false));
         let handle = {

@@ -240,6 +240,30 @@ pub enum Command {
     )]
     Alerts(AlertsArgs),
 
+    /// Is my network slow? Router, internet and DNS checked in seconds, with a verdict
+    #[command(
+        visible_alias = "slow",
+        long_about = "Measures, in parallel and in about five seconds, the round trip to the \
+                      router, to internet targets (1.1.1.1 and 9.9.9.9 unless --target is given \
+                      or snetd is configured otherwise) and the time the system's DNS takes to \
+                      resolve a name, while watching which applications use the network. Then it \
+                      says, first, where the problem is: the link to the router (Wi-Fi or \
+                      cable), the line past the router (line or provider), slow DNS, or an \
+                      application filling the connection; or that all is well.\n\n\
+                      Latencies are measured with ICMP echo (ping) where the system allows it \
+                      without privileges, otherwise with the time to open a TCP connection \
+                      (shown as TCP:port). A measurement that can't be made is reported as not \
+                      measurable. Only the router, the targets and the DNS server are contacted, \
+                      and nothing leaves this computer otherwise.\n\n\
+                      With snetd running, the service runs the check: it compares the latency \
+                      with the usual one, the traffic with the recent peak, and keeps the result \
+                      (see --history).\n\n\
+                      Exit status: 0 all good, 1 a problem was found, 2 the check failed or \
+                      nothing could be measured.",
+        after_long_help = "Examples:\n  snet check\n  snet slow --path\n  snet check --target example.com --target 8.8.8.8\n  snet check --json | jq .verdict\n  snet check --history 20"
+    )]
+    Check(CheckArgs),
+
     /// Generate man pages or shell completions (used by packaging)
     #[command(hide = true)]
     Generate(GenerateArgs),
@@ -503,6 +527,26 @@ pub struct InspectArgs {
     /// How long to observe before reporting (patterns need a few seconds)
     #[arg(short, long, value_name = "DURATION", default_value = "5s", value_parser = parse_duration)]
     pub wait: Duration,
+}
+
+#[derive(Debug, Args)]
+pub struct CheckArgs {
+    /// Internet target to measure, a name or an address (repeatable; default 1.1.1.1 and
+    /// 9.9.9.9)
+    #[arg(short, long = "target", value_name = "HOST")]
+    pub targets: Vec<String>,
+
+    /// Also trace the path to the first target, hop by hop (up to a minute more)
+    #[arg(short, long)]
+    pub path: bool,
+
+    /// Print the full report as JSON
+    #[arg(long)]
+    pub json: bool,
+
+    /// Show the last N checks recorded by snetd instead of running one
+    #[arg(long, value_name = "N", num_args = 0..=1, default_missing_value = "10")]
+    pub history: Option<u32>,
 }
 
 #[derive(Debug, Args)]

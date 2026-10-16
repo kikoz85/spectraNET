@@ -38,7 +38,11 @@ impl Rng {
                 // Extreme values where lengths usually live.
                 2 if !m.is_empty() => {
                     let i = self.below(m.len());
-                    m[i] = if self.next().is_multiple_of(2) { 0xff } else { 0x00 };
+                    m[i] = if self.next().is_multiple_of(2) {
+                        0xff
+                    } else {
+                        0x00
+                    };
                 }
                 // Cut.
                 3 => m.truncate(self.below(m.len() + 1)),

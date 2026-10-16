@@ -176,7 +176,8 @@ mod tests {
                 "snet-unblock.1",
                 "snet-blocks.1",
                 "snet-audit.1",
-                "snet-alerts.1"
+                "snet-alerts.1",
+                "snet-check.1",
             ]
         );
 

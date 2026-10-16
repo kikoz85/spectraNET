@@ -11,6 +11,7 @@ pub mod install;
 #[cfg(unix)]
 pub mod man;
 pub mod metrics;
+pub mod netcheck;
 pub mod service;
 pub mod transport;
 pub mod usage;
@@ -65,6 +66,8 @@ pub fn run_live(mock: bool, args: &RunArgs, stop: &AtomicBool) -> Result<()> {
         category_updates: file.category_updates,
         feeds_disabled: file.feeds_disabled.clone(),
         history_days: file.history_days,
+        check_targets: file.check_targets.clone(),
+        latency_watch_minutes: file.latency_watch_minutes,
         settings: file.settings(),
     };
     service::run(&config, source, stop)

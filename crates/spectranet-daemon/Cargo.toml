@@ -34,6 +34,7 @@ rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde_json = "1.0.151"
 signal-hook = "0.4.5"
 spectranet-intel.workspace = true
+spectranet-probe.workspace = true
 toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 netdev = { version = "0.46", default-features = false, features = ["gateway"] }

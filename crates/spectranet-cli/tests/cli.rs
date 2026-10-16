@@ -257,6 +257,8 @@ impl Service {
             feeds_disabled: Vec::new(),
             history_days: 0,
             settings: Default::default(),
+            check_targets: Vec::new(),
+            latency_watch_minutes: 0,
         };
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let handle = {

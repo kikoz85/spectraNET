@@ -19,6 +19,7 @@ workspace = true
 
 [dependencies]
 spectranet-proto.workspace = true
+spectranet-probe.workspace = true
 anstream = "1.0.0"
 anstyle = "1.0.14"
 anyhow = "1.0.104"
