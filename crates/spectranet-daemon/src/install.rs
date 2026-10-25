@@ -507,11 +507,13 @@ mod tests {
         match verify {
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
-                // Units outside the system directories trigger a harmless notice.
+                // Units outside the system directories trigger a harmless notice; complaints
+                // about the machine's other units (e.g. a VM's guest tools) are not ours.
                 let problems: Vec<_> = stderr
                     .lines()
                     .filter(|l| {
-                        !l.contains("is not executable")
+                        l.contains("snetd")
+                            && !l.contains("is not executable")
                             && !l.trim().is_empty()
                             && !l.contains("Failed to prepare filename")
                             && !l.contains("Command 'man ")

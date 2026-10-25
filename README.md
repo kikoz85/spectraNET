@@ -351,6 +351,11 @@ own application icons.
 |---|---|
 | ![Windows](docs/screenshots/windows.png) | ![Linux](docs/screenshots/linux.png) |
 
+Native builds for every processor: macOS universal (Apple silicon and Intel), Windows x64 and
+**Windows on ARM**, Linux x86-64 and **64-bit ARM** (e.g. Raspberry Pi 4/5 with a 64-bit
+system, ARM servers and laptops, Linux virtual machines on Apple silicon). The ARM builds are
+tested on Windows 11 on ARM and Debian 13 arm64 before every release.
+
 ### Install
 
 Download the package for your system from the
@@ -368,7 +373,8 @@ Download the package for your system from the
    sudo ./snetd install        # also installs snet and the man pages
    ```
 
-**Linux** (x86-64, kernel 5.8+ with BTF — every current distribution)
+**Linux** (x86-64 or 64-bit ARM, kernel 5.8+ with BTF — every current distribution; on ARM
+the files say `aarch64` / `arm64` instead of `x86_64` / `amd64`)
 
 - **AppImage** (any distribution, nothing to install):
   ```sh
@@ -385,9 +391,10 @@ Download the package for your system from the
   ```
 - Or unpack `spectranet-<version>-linux-x86_64.tar.gz` under `/usr/local`.
 
-**Windows** (10/11, x64)
+**Windows** (10/11, x64 or ARM)
 
-1. Run `spectraNET-<version>-windows-x86_64-setup.exe` (English or Italian). It installs the
+1. Run `spectraNET-<version>-windows-x86_64-setup.exe` (on Windows on ARM:
+   `spectraNET-<version>-windows-arm64-setup.exe`) (English or Italian). It installs the
    app in `C:\Program Files\spectraNET`, adds it to the Start menu and, unless you untick it,
    starts the background service; it can also put `snet` on the PATH.
 2. Open **spectraNET** from the Start menu — no "Run as administrator" needed: the setup
@@ -416,8 +423,8 @@ Or the packages, from the Releases page:
 | System | Package | Installs |
 |---|---|---|
 | macOS | `spectranet-cli-<version>-macos-universal.pkg` | open it: `snet`, `snetd` and the man pages in `/usr/local`, service started |
-| Debian / Ubuntu | `spectranet-cli_<version>_amd64.deb` | `sudo apt install ./spectranet-cli_<version>_amd64.deb`: service started |
-| Windows | `spectranet-cli-<version>-windows-x86_64-setup.exe` | service started, `snet` on the PATH |
+| Debian / Ubuntu | `spectranet-cli_<version>_amd64.deb` (ARM: `_arm64.deb`) | `sudo apt install ./spectranet-cli_<version>_amd64.deb`: service started |
+| Windows | `spectranet-cli-<version>-windows-x86_64-setup.exe` (ARM: `windows-arm64`) | service started, `snet` on the PATH |
 | any | `spectranet-cli-<version>-<system>.tar.gz` / `.zip` | unpack, then `sudo ./snetd install` |
 
 Then `snet top` (or `snet list`, `snet status`, `man snet`). Remove with `sudo snetd uninstall`
@@ -597,7 +604,7 @@ only, on the [Releases](https://github.com/kikoz85/spectraNET/releases) page.
 |---|---|
 | **macOS** 11+ | Xcode Command Line Tools: `xcode-select --install` (libpcap is part of macOS) |
 | **Linux** (kernel 5.8+ with BTF) | `clang` (compiles the eBPF probe) and libpcap headers — Debian/Ubuntu: `sudo apt install build-essential clang libpcap-dev`; Fedora: `sudo dnf install clang libpcap-devel`; Arch: `sudo pacman -S base-devel clang libpcap` |
-| **Windows** 10/11 | Visual Studio Build Tools with *Desktop development with C++*, and the MSVC Rust toolchain (`rustup default stable-msvc`) |
+| **Windows** 10/11 | Visual Studio Build Tools with *Desktop development with C++*, and the MSVC Rust toolchain (`rustup default stable-msvc`); on Windows on ARM also the *C++ Clang tools* component (`clang` on the PATH) |
 
 **Build and test**:
 
@@ -976,6 +983,11 @@ icone delle applicazioni.
 |---|---|
 | ![Windows](docs/screenshots/windows.png) | ![Linux](docs/screenshots/linux.png) |
 
+Versioni native per ogni processore: macOS universale (Apple silicon e Intel), Windows x64 e
+**Windows su ARM**, Linux x86-64 e **ARM a 64 bit** (ad esempio Raspberry Pi 4/5 con sistema a
+64 bit, server e portatili ARM, macchine virtuali Linux su Apple silicon). Le versioni ARM sono
+provate su Windows 11 su ARM e Debian 13 arm64 prima di ogni release.
+
 ### Installazione
 
 Scarica il pacchetto per il tuo sistema dalla pagina
@@ -993,7 +1005,8 @@ Scarica il pacchetto per il tuo sistema dalla pagina
    sudo ./snetd install        # installa anche snet e le pagine man
    ```
 
-**Linux** (x86-64, kernel 5.8+ con BTF — tutte le distribuzioni attuali)
+**Linux** (x86-64 o ARM a 64 bit, kernel 5.8+ con BTF — tutte le distribuzioni attuali; su ARM i
+file riportano `aarch64` / `arm64` al posto di `x86_64` / `amd64`)
 
 - **AppImage** (qualsiasi distribuzione, niente da installare):
   ```sh
@@ -1010,9 +1023,10 @@ Scarica il pacchetto per il tuo sistema dalla pagina
   ```
 - Oppure estrai `spectranet-<versione>-linux-x86_64.tar.gz` in `/usr/local`.
 
-**Windows** (10/11, x64)
+**Windows** (10/11, x64 o ARM)
 
-1. Avvia `spectraNET-<versione>-windows-x86_64-setup.exe` (in italiano o inglese). Installa
+1. Avvia `spectraNET-<versione>-windows-x86_64-setup.exe` (su Windows su ARM:
+   `spectraNET-<versione>-windows-arm64-setup.exe`) (in italiano o inglese). Installa
    l'app in `C:\Program Files\spectraNET`, la aggiunge al menu Start e, se non togli la
    spunta, avvia il servizio in background; può anche aggiungere `snet` al PATH.
 2. Apri **spectraNET** dal menu Start — non serve "Esegui come amministratore": l'installer
@@ -1041,8 +1055,8 @@ Oppure i pacchetti, dalla pagina Releases:
 | Sistema | Pacchetto | Installa |
 |---|---|---|
 | macOS | `spectranet-cli-<versione>-macos-universal.pkg` | aprilo: `snet`, `snetd` e le pagine man in `/usr/local`, servizio avviato |
-| Debian / Ubuntu | `spectranet-cli_<versione>_amd64.deb` | `sudo apt install ./spectranet-cli_<versione>_amd64.deb`: servizio avviato |
-| Windows | `spectranet-cli-<versione>-windows-x86_64-setup.exe` | servizio avviato, `snet` nel PATH |
+| Debian / Ubuntu | `spectranet-cli_<versione>_amd64.deb` (ARM: `_arm64.deb`) | `sudo apt install ./spectranet-cli_<versione>_amd64.deb`: servizio avviato |
+| Windows | `spectranet-cli-<versione>-windows-x86_64-setup.exe` (ARM: `windows-arm64`) | servizio avviato, `snet` nel PATH |
 | qualsiasi | `spectranet-cli-<versione>-<sistema>.tar.gz` / `.zip` | scompatta, poi `sudo ./snetd install` |
 
 Poi `snet top` (oppure `snet list`, `snet status`, `man snet`). Si rimuove con
@@ -1211,7 +1225,7 @@ pacchetti pronti, nella pagina [Releases](https://github.com/kikoz85/spectraNET/
 |---|---|
 | **macOS** 11+ | Xcode Command Line Tools: `xcode-select --install` (libpcap fa parte di macOS) |
 | **Linux** (kernel 5.8+ con BTF) | `clang` (compila la sonda eBPF) e gli header di libpcap — Debian/Ubuntu: `sudo apt install build-essential clang libpcap-dev`; Fedora: `sudo dnf install clang libpcap-devel`; Arch: `sudo pacman -S base-devel clang libpcap` |
-| **Windows** 10/11 | Visual Studio Build Tools con *Sviluppo di applicazioni desktop con C++* e la toolchain Rust MSVC (`rustup default stable-msvc`) |
+| **Windows** 10/11 | Visual Studio Build Tools con *Sviluppo di applicazioni desktop con C++* e la toolchain Rust MSVC (`rustup default stable-msvc`); su Windows su ARM anche il componente *Strumenti Clang C++* (`clang` nel PATH) |
 
 **Compilare e provare**:
 
