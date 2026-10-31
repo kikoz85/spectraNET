@@ -364,7 +364,8 @@ Download the package for your system from the
 **macOS** (11 or later, Apple silicon and Intel)
 
 1. Open `spectraNET-<version>-macos-universal.dmg` and drag **spectraNET** to Applications.
-2. The app is not notarised: the first time, right-click it and choose **Open**.
+2. Open it: the app is signed with an Apple Developer ID and notarized by Apple, so macOS opens
+   it without warnings.
 3. Install the background service (recommended): open the app and click **Install service** in
    the bar under the top bar (macOS asks for your password). Or from the CLI archive:
    ```sh
@@ -996,7 +997,8 @@ Scarica il pacchetto per il tuo sistema dalla pagina
 **macOS** (11 o successivo, Apple silicon e Intel)
 
 1. Apri `spectraNET-<versione>-macos-universal.dmg` e trascina **spectraNET** in Applicazioni.
-2. L'app non è notarizzata: la prima volta, clic destro e **Apri**.
+2. Aprila: l'app è firmata con un Developer ID Apple e notarizzata da Apple, quindi macOS la
+   apre senza avvisi.
 3. Installa il servizio in background (consigliato): apri l'app e clicca **Installa servizio**
    nella barra sotto la barra in alto (macOS chiede la password). Oppure dall'archivio CLI:
    ```sh
