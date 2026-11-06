@@ -48,7 +48,7 @@ fn stop_on_signals() -> Result<Arc<AtomicBool>> {
 /// `snetd config show | set KEY=VALUE…`.
 fn config(action: ConfigAction) -> Result<()> {
     use spectranet_daemon::config;
-    let dir = std::path::Path::new(spectranet_proto::DEFAULT_DATA_DIR);
+    let dir = &spectranet_proto::default_data_dir();
     match action {
         ConfigAction::Show => {
             print!("{}", config::load(dir).render());

@@ -196,10 +196,9 @@ pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBoo
     let result = sample_loop(config, source.as_mut(), &shared, stop);
 
     flush(&shared);
-    let _ = std::fs::remove_file(&config.socket);
-    // Wake the accept loop so the server thread can notice the socket is gone.
+    // Wake the accept loop (through the socket, so before removing it) so the server thread
+    // notices the service is stopping.
     shared.stopping.store(true, Ordering::SeqCst);
-    transport::cleanup(&config.socket);
     transport::wake(&config.socket);
     // The accept loop exits after the wake-up connection; bounded wait so a stuck accept can
     // never hold the service up.
@@ -207,6 +206,7 @@ pub fn run(config: &Config, mut source: Box<dyn TrafficSource>, stop: &AtomicBoo
     while !server.is_finished() && Instant::now() < deadline {
         thread::sleep(Duration::from_millis(10));
     }
+    transport::cleanup(&config.socket);
     log("stopped");
     result
 }

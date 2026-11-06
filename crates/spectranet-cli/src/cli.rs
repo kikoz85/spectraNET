@@ -53,7 +53,7 @@ pub struct Cli {
     pub numeric: bool,
 
     /// Talk to snetd on this socket
-    #[arg(long, global = true, value_name = "PATH", env = "SNET_SOCKET", default_value = spectranet_proto::DEFAULT_SOCKET)]
+    #[arg(long, global = true, value_name = "PATH", env = "SNET_SOCKET", default_value_os_t = spectranet_proto::default_socket())]
     pub socket: std::path::PathBuf,
 
     /// Capture directly even if snetd is running

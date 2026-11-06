@@ -75,11 +75,11 @@ pub struct RunArgs {
     pub mock: bool,
 
     /// Listen on this Unix socket
-    #[arg(long, value_name = "PATH", default_value = spectranet_proto::DEFAULT_SOCKET)]
+    #[arg(long, value_name = "PATH", default_value_os_t = spectranet_proto::default_socket())]
     pub socket: PathBuf,
 
     /// Keep history, alerts and reputation lists under this directory
-    #[arg(long, value_name = "DIR", default_value = spectranet_proto::DEFAULT_DATA_DIR)]
+    #[arg(long, value_name = "DIR", default_value_os_t = spectranet_proto::default_data_dir())]
     pub data_dir: PathBuf,
 
     /// Use this SQLite database instead of DIR/usage.sqlite
@@ -105,8 +105,8 @@ impl RunArgs {
     pub fn service_defaults() -> Self {
         Self {
             mock: false,
-            socket: spectranet_proto::DEFAULT_SOCKET.into(),
-            data_dir: spectranet_proto::DEFAULT_DATA_DIR.into(),
+            socket: spectranet_proto::default_socket(),
+            data_dir: spectranet_proto::default_data_dir(),
             database: None,
             no_feed_updates: false,
             interval: 1.0,

@@ -26,6 +26,39 @@ pub const DEFAULT_DATA_DIR: &str = "/Library/Application Support/spectraNET";
 pub const DEFAULT_DATA_DIR: &str = r"C:\ProgramData\spectraNET";
 #[cfg(not(any(target_os = "macos", windows)))]
 pub const DEFAULT_DATA_DIR: &str = "/var/lib/spectranet";
+/// Whether this program runs from its own snap. The executable must be inside `$SNAP`: other
+/// snaps (a terminal in the VS Code snap, say) pass their `SNAP*` variables on to whatever
+/// they start, and a copy installed from the .deb must keep the system paths then.
+pub fn in_snap() -> bool {
+    if !cfg!(target_os = "linux") {
+        return false;
+    }
+    let (Some(snap), Ok(exe)) = (std::env::var_os("SNAP"), std::env::current_exe()) else {
+        return false;
+    };
+    !snap.is_empty() && exe.starts_with(snap)
+}
+
+/// Inside a snap, the service's files live in `$SNAP_COMMON`, shared by the snap's apps (the
+/// system paths above are out of its confinement).
+fn snap_common() -> Option<std::path::PathBuf> {
+    if in_snap() {
+        std::env::var_os("SNAP_COMMON").map(std::path::PathBuf::from)
+    } else {
+        None
+    }
+}
+
+/// Where `snetd` listens: [`DEFAULT_SOCKET`], or `$SNAP_COMMON/snetd.sock` in a snap.
+pub fn default_socket() -> std::path::PathBuf {
+    snap_common().map_or_else(|| DEFAULT_SOCKET.into(), |dir| dir.join("snetd.sock"))
+}
+
+/// Where `snetd` keeps its data: [`DEFAULT_DATA_DIR`], or `$SNAP_COMMON` in a snap.
+pub fn default_data_dir() -> std::path::PathBuf {
+    snap_common().unwrap_or_else(|| DEFAULT_DATA_DIR.into())
+}
+
 /// Subdirectory of the data directory holding the reputation lists (world-readable).
 pub const FEEDS_SUBDIR: &str = "feeds";
 /// Requests are tiny; anything longer is rejected.
@@ -691,6 +724,15 @@ mod tests {
         let err = check_socket_path(&long).unwrap_err().to_string();
         assert!(err.contains("at most 103"), "{err}");
         assert!(check_socket_path(Path::new(DEFAULT_SOCKET)).is_ok());
+    }
+
+    #[test]
+    fn outside_its_snap_the_system_paths_are_kept() {
+        // The test binary is in no snap, even when run from another snap's terminal (which
+        // passes on SNAP, SNAP_COMMON…): the .deb and tarball copies keep the system paths.
+        assert!(!in_snap());
+        assert_eq!(default_socket(), Path::new(DEFAULT_SOCKET));
+        assert_eq!(default_data_dir(), Path::new(DEFAULT_DATA_DIR));
     }
 
     #[cfg(unix)]

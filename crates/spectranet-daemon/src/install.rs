@@ -178,6 +178,19 @@ fn require_root() -> Result<()> {
 /// Applies new settings: restarts the installed service (nothing to do when it isn't).
 pub fn restart() -> Result<()> {
     require_root()?;
+    // In a snap the service is the snap's `daemon` app: snapd restarts it.
+    if let Some(snap) =
+        std::env::var_os("SNAP_INSTANCE_NAME").filter(|_| spectranet_proto::in_snap())
+    {
+        let service = format!("{}.daemon", snap.to_string_lossy());
+        let status = Command::new("snapctl")
+            .args(["restart", &service])
+            .status()
+            .context("running snapctl")?;
+        ensure!(status.success(), "snapctl restart {service} failed");
+        println!("snetd restarted");
+        return Ok(());
+    }
     if !Path::new(SERVICE_FILE).exists() {
         return Ok(());
     }

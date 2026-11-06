@@ -57,7 +57,12 @@ mod platform {
     /// A client silent for this long is disconnected.
     const CLIENT_IDLE: Duration = Duration::from_secs(30);
 
-    pub struct Listener(UnixListener);
+    pub struct Listener {
+        listener: UnixListener,
+        /// In a snap, the group whose members may connect, checked on each connection: the
+        /// snap may not give the socket to that group.
+        members_of: Option<u32>,
+    }
 
     impl Listener {
         /// Binds the socket, replacing a stale one but refusing to run twice. With a group,
@@ -76,20 +81,39 @@ mod platform {
             }
             let listener = UnixListener::bind(path)
                 .with_context(|| format!("listening on {}", path.display()))?;
-            let mode = if group.is_some() { 0o660 } else { 0o600 };
+            // A snap may not change a file's group: anyone may connect there, and accept()
+            // turns away whoever is neither root nor in the group.
+            let members_of = group.filter(|_| spectranet_proto::in_snap());
+            let mode = match (group, members_of) {
+                (Some(_), Some(_)) => 0o666,
+                (Some(_), None) => 0o660,
+                (None, _) => 0o600,
+            };
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
-            if let Some(gid) = group {
+            if let (Some(gid), None) = (group, members_of) {
                 std::os::unix::fs::chown(path, None, Some(gid))
                     .with_context(|| format!("setting group of {}", path.display()))?;
             }
-            Ok(Self(listener))
+            Ok(Self {
+                listener,
+                members_of,
+            })
         }
 
         pub fn accept(&self) -> io::Result<Conn> {
-            let (stream, _) = self.0.accept()?;
+            let (stream, _) = self.listener.accept()?;
             stream.set_read_timeout(Some(CLIENT_IDLE))?;
             stream.set_write_timeout(Some(CLIENT_IDLE))?;
             let peer = peer_of(&stream);
+            if let Some(gid) = self.members_of
+                && !peer.elevated
+                && !peer.pid.is_some_and(|pid| in_group(pid, gid))
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    format!("{} may not read snetd", peer.user),
+                ));
+            }
             let writer = stream.try_clone()?;
             Ok(Conn {
                 reader: Box::new(stream),
@@ -97,6 +121,21 @@ mod platform {
                 peer,
             })
         }
+    }
+
+    /// Whether process `pid` has `gid` among its groups (from /proc).
+    fn in_group(pid: u32, gid: u32) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/status"))
+            .is_ok_and(|status| status_has_group(&status, gid))
+    }
+
+    /// `Gid:` (real, effective…) and `Groups:` lines of a /proc/PID/status.
+    pub(super) fn status_has_group(status: &str, gid: u32) -> bool {
+        status
+            .lines()
+            .filter_map(|l| l.strip_prefix("Gid:").or_else(|| l.strip_prefix("Groups:")))
+            .flat_map(str::split_whitespace)
+            .any(|g| g.parse() == Ok(gid))
     }
 
     /// Credentials of the process at the other end of a Unix socket.
@@ -394,5 +433,20 @@ mod platform {
             .read(true)
             .write(true)
             .open(path);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::platform::status_has_group;
+
+    #[test]
+    fn group_membership_is_read_from_proc_status() {
+        let status = "Name:\tspectranet\nUid:\t1000\t1000\t1000\t1000\n\
+                      Gid:\t1000\t1000\t1000\t1000\nGroups:\t4 24 27 1000 \n";
+        assert!(status_has_group(status, 27), "a supplementary group (sudo)");
+        assert!(status_has_group(status, 1000), "the primary group");
+        assert!(!status_has_group(status, 10), "wheel is not among them");
+        assert!(!status_has_group("Name:\tx\nGroups:\t\n", 27));
     }
 }

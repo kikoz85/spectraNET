@@ -154,8 +154,7 @@ fn open_source_inner(cli: &Cli) -> anyhow::Result<Box<dyn TrafficSource>> {
             service: false,
         })?;
         // Without the service, apply the same rules here, with whatever lists it downloaded.
-        let feeds = std::path::Path::new(spectranet_proto::DEFAULT_DATA_DIR)
-            .join(spectranet_proto::FEEDS_SUBDIR);
+        let feeds = spectranet_proto::default_data_dir().join(spectranet_proto::FEEDS_SUBDIR);
         Box::new(Annotated {
             inner: live,
             intel: spectranet_intel::Intel::load(&feeds),

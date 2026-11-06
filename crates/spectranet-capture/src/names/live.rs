@@ -94,6 +94,11 @@ fn open_new_devices(
     running: &Arc<Mutex<HashSet<String>>>,
     workers: &mut Vec<JoinHandle<()>>,
 ) -> Result<usize, StartError> {
+    // Linux uses only `any`: opened by name, since listing the interfaces also probes
+    // Bluetooth, which fails the whole list where raw Bluetooth sockets are refused (a snap).
+    #[cfg(target_os = "linux")]
+    let devices = vec![Device::from("any")];
+    #[cfg(not(target_os = "linux"))]
     let devices = Device::list().map_err(|e| StartError::Failed(e.to_string()))?;
     let mut denied = 0;
     let mut candidates = 0;
@@ -113,7 +118,10 @@ fn open_new_devices(
                     .name(format!("snet-capture-{name}"))
                     .spawn(move || {
                         let mut capture = capture;
-                        pump(&mut capture, link, &table, &stop);
+                        // Non-blocking on Linux only (see `open`): there `pump` waits.
+                        let fd = cfg!(target_os = "linux")
+                            .then(|| std::os::fd::AsRawFd::as_raw_fd(&capture));
+                        pump(&mut capture, fd, link, &table, &stop);
                         if let Ok(mut r) = running.lock() {
                             r.remove(&name);
                         }
@@ -145,11 +153,17 @@ fn usable(device: &Device) -> bool {
 }
 
 fn open(device: Device) -> Result<(Capture<pcap::Active>, Link), pcap::Error> {
-    let mut capture = Capture::from_device(device)?
+    let capture = Capture::from_device(device)?
         .immediate_mode(true)
         .snaplen(65_535)
         .timeout(READ_TIMEOUT_MS)
         .open()?;
+    // Linux libpcap ignores the read timeout in immediate mode: a blocking read waits for the
+    // next matching packet, which may never come, and stopping waits with it. Reads don't
+    // block there; `pump` waits for the descriptor itself, at most READ_TIMEOUT_MS.
+    #[cfg(target_os = "linux")]
+    let capture = capture.setnonblock()?;
+    let mut capture = capture;
     capture.filter(FILTER, true)?;
     let link = Link::from_dlt(capture.get_datalink().0)
         .ok_or_else(|| pcap::Error::PcapError("unsupported link type".into()))?;
@@ -161,9 +175,11 @@ fn is_permission_error(e: &pcap::Error) -> bool {
     text.contains("permission denied") || text.contains("operation not permitted")
 }
 
-/// Reads frames until stopped, end of file, or a fatal error.
+/// Reads frames until stopped, end of file, or a fatal error. `fd` is a live capture's
+/// descriptor, waited on when a non-blocking read finds nothing.
 pub fn pump<T: Activated + ?Sized>(
     capture: &mut Capture<T>,
+    fd: Option<std::os::fd::RawFd>,
     link: Link,
     table: &Mutex<NameTable>,
     stop: &AtomicBool,
@@ -178,10 +194,27 @@ pub fn pump<T: Activated + ?Sized>(
                     t.apply(learned);
                 }
             }
-            Err(pcap::Error::TimeoutExpired) => {}
+            // Nothing to read (a non-blocking live capture): wait for some, briefly.
+            Err(pcap::Error::TimeoutExpired) => {
+                if let Some(fd) = fd {
+                    wait_readable(fd, READ_TIMEOUT_MS);
+                }
+            }
             Err(_) => break, // NoMorePackets (file) or interface gone
         }
     }
+}
+
+/// Waits until the capture has something to read, at most `timeout_ms`.
+#[allow(unsafe_code)]
+fn wait_readable(fd: std::os::fd::RawFd, timeout_ms: i32) {
+    let mut fd = libc::pollfd {
+        fd,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    // SAFETY: one valid pollfd, owned by this frame.
+    unsafe { libc::poll(&mut fd, 1, timeout_ms) };
 }
 
 /// Replays a capture file through the same pipeline as live capture.
@@ -189,7 +222,7 @@ pub fn replay(path: &Path, table: &Mutex<NameTable>) -> Result<(), pcap::Error> 
     let mut capture = Capture::from_file(path)?;
     let link = Link::from_dlt(capture.get_datalink().0)
         .ok_or_else(|| pcap::Error::PcapError("unsupported link type".into()))?;
-    pump(&mut capture, link, table, &AtomicBool::new(false));
+    pump(&mut capture, None, link, table, &AtomicBool::new(false));
     Ok(())
 }
 

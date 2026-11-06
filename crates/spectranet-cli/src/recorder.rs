@@ -239,7 +239,7 @@ fn shell_quote(path: &Path) -> String {
 pub fn analyze(args: &AnalyzeArgs) -> Result<()> {
     let file = std::fs::File::open(&args.file)
         .with_context(|| format!("opening {}", args.file.display()))?;
-    let feeds = Path::new(spectranet_proto::DEFAULT_DATA_DIR).join(spectranet_proto::FEEDS_SUBDIR);
+    let feeds = spectranet_proto::default_data_dir().join(spectranet_proto::FEEDS_SUBDIR);
     let report = analysis::analyze(BufReader::new(file), &spectranet_intel::Intel::load(&feeds))
         .with_context(|| format!("reading {}", args.file.display()))?;
     let mut out = anstream::stdout().lock();
