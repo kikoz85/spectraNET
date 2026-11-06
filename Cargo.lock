@@ -5030,7 +5030,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-capture"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -5053,7 +5053,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-cli"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "anstream",
  "anstyle",
@@ -5081,7 +5081,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-daemon"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -5107,7 +5107,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-gui"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "clap",
  "clap_mangen",
@@ -5137,7 +5137,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-intel"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5148,7 +5148,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-model"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5156,7 +5156,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-probe"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "libc",
  "serde",
@@ -5167,7 +5167,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-proto"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5177,7 +5177,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-qa"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -5190,7 +5190,7 @@ dependencies = [
 
 [[package]]
 name = "spectranet-render"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "bytemuck",
  "glam",

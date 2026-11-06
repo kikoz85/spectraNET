@@ -406,6 +406,10 @@ the files say `aarch64` / `arm64` instead of `x86_64` / `amd64`)
 A portable `spectranet-<version>-windows-x86_64.zip` is also available
 (`.\snetd.exe install` from an administrator PowerShell installs the service).
 
+**From the Microsoft Store** — [spectraNET on the Microsoft Store](https://apps.microsoft.com/detail/9NH3F39NHFC2)
+(x64 and ARM): the Store installs the app, `snet` and the snetd service together and keeps them
+up to date. Install either the Store version or the setup, not both: they share the service.
+
 **Command line only** — `snet` and the `snetd` service, without the desktop app, for servers,
 terminals and scripts. This is the open-source part of spectraNET (MIT OR Apache-2.0): the same
 programs can also be [built from source](#building-from-source). One command, from the latest release (checked against its
@@ -465,7 +469,7 @@ installation (macOS app, Windows installer, Linux AppImage or Debian package), c
 the release's `SHA256SUMS.txt`, installs it together with the snetd service (one administrator
 prompt) and starts again. When the service is missing or older than the app, the same bar
 offers to install or update it. The portable zip and the tarballs open the releases page
-instead.
+instead. The Microsoft Store version is updated by the Store.
 
 **About spectraNET** (click the logo at the top left) shows your version, *Check for updates*
 and the switch for automatic checks.
@@ -1039,6 +1043,10 @@ file riportano `aarch64` / `arm64` al posto di `x86_64` / `amd64`)
 È disponibile anche lo zip portabile `spectranet-<versione>-windows-x86_64.zip`
 (`.\snetd.exe install` da un PowerShell amministratore installa il servizio).
 
+**Dal Microsoft Store** — [spectraNET sul Microsoft Store](https://apps.microsoft.com/detail/9NH3F39NHFC2)
+(x64 e ARM): lo Store installa insieme l'app, `snet` e il servizio snetd e li tiene aggiornati.
+Installa la versione dello Store oppure l'installer, non entrambi: condividono il servizio.
+
 **Solo riga di comando** — `snet` e il servizio `snetd`, senza l'app desktop, per server,
 terminali e script. È la parte open source di spectraNET (MIT OR Apache-2.0): gli stessi
 programmi si possono anche [compilare dai sorgenti](#compilare-dai-sorgenti). Un solo comando, dall'ultima release (verificata con il suo
@@ -1100,7 +1108,7 @@ tuo tipo di installazione (app macOS, installer Windows, AppImage o pacchetto De
 lo verifica con il `SHA256SUMS.txt` della release, lo installa insieme al servizio snetd (una
 sola richiesta di password) e riparte. Quando il servizio manca o è più vecchio dell'app, la
 stessa barra propone di installarlo o aggiornarlo. Lo zip portabile e gli archivi tar.gz aprono
-invece la pagina delle release.
+invece la pagina delle release. La versione del Microsoft Store la aggiorna lo Store.
 
 **Informazioni su spectraNET** (clic sul logo in alto a sinistra) mostra la versione,
 *Controlla aggiornamenti* e l'interruttore per i controlli automatici.
