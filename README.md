@@ -391,6 +391,16 @@ the files say `aarch64` / `arm64` instead of `x86_64` / `amd64`)
   sudo usermod -aG sudo "$USER"                        # members of sudo/wheel may read it
   ```
 - Or unpack `spectranet-<version>-linux-x86_64.tar.gz` under `/usr/local`.
+- **Snap** ([Snap Store](https://snapcraft.io/spectranet), x86-64 and ARM):
+  ```sh
+  sudo snap install spectranet
+  for i in system-trace system-observe network-observe network-control process-control; do
+    sudo snap connect spectranet:$i                    # once, until the Store connects them
+  done
+  ```
+  The service starts by itself once they are connected; `spectranet.snet` is the command line
+  and `sudo spectranet.snetd config set …` changes its settings. Members of sudo/wheel may read
+  it. Install either the snap or the .deb, not both.
 
 **Windows** (10/11, x64 or ARM)
 
@@ -469,7 +479,7 @@ installation (macOS app, Windows installer, Linux AppImage or Debian package), c
 the release's `SHA256SUMS.txt`, installs it together with the snetd service (one administrator
 prompt) and starts again. When the service is missing or older than the app, the same bar
 offers to install or update it. The portable zip and the tarballs open the releases page
-instead. The Microsoft Store version is updated by the Store.
+instead. The Microsoft Store and Snap Store versions are updated by their stores.
 
 **About spectraNET** (click the logo at the top left) shows your version, *Check for updates*
 and the switch for automatic checks.
@@ -1028,6 +1038,16 @@ file riportano `aarch64` / `arm64` al posto di `x86_64` / `amd64`)
   sudo usermod -aG sudo "$USER"                         # i membri di sudo/wheel possono leggerlo
   ```
 - Oppure estrai `spectranet-<versione>-linux-x86_64.tar.gz` in `/usr/local`.
+- **Snap** ([Snap Store](https://snapcraft.io/spectranet), x86-64 e ARM):
+  ```sh
+  sudo snap install spectranet
+  for i in system-trace system-observe network-observe network-control process-control; do
+    sudo snap connect spectranet:$i                    # una volta, finché non le collega lo Store
+  done
+  ```
+  Il servizio parte da solo appena sono collegate; `spectranet.snet` è la riga di comando e
+  `sudo spectranet.snetd config set …` ne cambia le impostazioni. I membri di sudo/wheel possono
+  leggerlo. Installa lo snap oppure il .deb, non entrambi.
 
 **Windows** (10/11, x64 o ARM)
 
@@ -1108,7 +1128,7 @@ tuo tipo di installazione (app macOS, installer Windows, AppImage o pacchetto De
 lo verifica con il `SHA256SUMS.txt` della release, lo installa insieme al servizio snetd (una
 sola richiesta di password) e riparte. Quando il servizio manca o è più vecchio dell'app, la
 stessa barra propone di installarlo o aggiornarlo. Lo zip portabile e gli archivi tar.gz aprono
-invece la pagina delle release. La versione del Microsoft Store la aggiorna lo Store.
+invece la pagina delle release. Le versioni del Microsoft Store e dello Snap Store le aggiornano i rispettivi store.
 
 **Informazioni su spectraNET** (clic sul logo in alto a sinistra) mostra la versione,
 *Controlla aggiornamenti* e l'interruttore per i controlli automatici.
