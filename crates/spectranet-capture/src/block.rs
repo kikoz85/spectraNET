@@ -109,7 +109,7 @@ mod platform {
     use aya::programs::{
         CgroupAttachMode, CgroupSkb, CgroupSkbAttachType, CgroupSock, CgroupSockAddr,
     };
-    use aya::{Btf, Ebpf, EbpfLoader};
+    use aya::{Ebpf, EbpfLoader};
 
     use super::*;
 
@@ -171,7 +171,8 @@ mod platform {
     }
 
     pub fn start() -> io::Result<Box<dyn Enforcer>> {
-        let btf = Btf::from_sys_fs().map_err(|e| other(format!("kernel BTF unavailable: {e}")))?;
+        let btf = crate::linux::btf::kernel_btf()
+            .map_err(|e| other(format!("kernel BTF unavailable: {e}")))?;
         let mut ebpf = EbpfLoader::new()
             .btf(Some(&btf))
             .load(OBJECT)

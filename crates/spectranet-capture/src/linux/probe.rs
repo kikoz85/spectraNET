@@ -2,7 +2,7 @@
 
 use aya::maps::{HashMap, MapData, RingBuf};
 use aya::programs::{FEntry, FExit};
-use aya::{Btf, Ebpf, EbpfLoader};
+use aya::{Ebpf, EbpfLoader};
 
 /// Mirror of `struct sock_info` in the probe. Layout checked by a test.
 #[repr(C)]
@@ -38,15 +38,25 @@ struct CloseEvent {
 
 const OBJECT: &[u8] = aya::include_bytes_aligned!(concat!(env!("OUT_DIR"), "/spectranet.bpf.o"));
 
-/// Hooks: (program name in the object, kernel function, exit hook?).
-const HOOKS: [(&str, &str, bool); 7] = [
-    ("tcp_sendmsg_exit", "tcp_sendmsg", true),
-    ("tcp_cleanup_rbuf_entry", "tcp_cleanup_rbuf", false),
-    ("udp_sendmsg_exit", "udp_sendmsg", true),
-    ("udpv6_sendmsg_exit", "udpv6_sendmsg", true),
-    ("udp_recvmsg_exit", "udp_recvmsg", true),
-    ("udpv6_recvmsg_exit", "udpv6_recvmsg", true),
-    ("inet_release_entry", "inet_release", false),
+/// Hooks: (programs in the object, kernel function, exit hook?). Where a kernel changed the
+/// function's arguments there is a program per signature: the first the kernel accepts is used.
+const HOOKS: [(&[&str], &str, bool); 7] = [
+    (&["tcp_sendmsg_exit"], "tcp_sendmsg", true),
+    (&["tcp_cleanup_rbuf_entry"], "tcp_cleanup_rbuf", false),
+    (&["udp_sendmsg_exit"], "udp_sendmsg", true),
+    (&["udpv6_sendmsg_exit"], "udpv6_sendmsg", true),
+    // Five arguments until Linux 6.x, four from 7.0 (addr_len dropped).
+    (
+        &["udp_recvmsg_exit", "udp_recvmsg_exit4"],
+        "udp_recvmsg",
+        true,
+    ),
+    (
+        &["udpv6_recvmsg_exit", "udpv6_recvmsg_exit4"],
+        "udpv6_recvmsg",
+        true,
+    ),
+    (&["inet_release_entry"], "inet_release", false),
 ];
 
 /// Why the probe could not be started.
@@ -66,24 +76,30 @@ pub struct Probe {
 
 impl Probe {
     pub fn start() -> Result<Self, ProbeError> {
-        let btf = Btf::from_sys_fs()
+        let btf = super::btf::kernel_btf()
             .map_err(|e| ProbeError::Failed(format!("kernel BTF unavailable: {e}")))?;
         let mut ebpf = EbpfLoader::new()
             .btf(Some(&btf))
             .load(OBJECT)
             .map_err(classify)?;
-        for (program, function, exit) in HOOKS {
-            let prog = ebpf.program_mut(program).ok_or_else(|| {
-                ProbeError::Failed(format!("program {program} missing from probe"))
-            })?;
-            let result = if exit {
-                let p: &mut FExit = prog.try_into().map_err(classify)?;
-                p.load(function, &btf).and_then(|()| p.attach().map(drop))
-            } else {
-                let p: &mut FEntry = prog.try_into().map_err(classify)?;
-                p.load(function, &btf).and_then(|()| p.attach().map(drop))
-            };
-            result.map_err(|e| match classify(e) {
+        for (programs, function, exit) in HOOKS {
+            let mut outcome = Ok(());
+            for program in programs {
+                let prog = ebpf.program_mut(program).ok_or_else(|| {
+                    ProbeError::Failed(format!("program {program} missing from probe"))
+                })?;
+                outcome = if exit {
+                    let p: &mut FExit = prog.try_into().map_err(classify)?;
+                    p.load(function, &btf).and_then(|()| p.attach().map(drop))
+                } else {
+                    let p: &mut FEntry = prog.try_into().map_err(classify)?;
+                    p.load(function, &btf).and_then(|()| p.attach().map(drop))
+                };
+                if outcome.is_ok() {
+                    break;
+                }
+            }
+            outcome.map_err(|e| match classify(e) {
                 ProbeError::Failed(m) => {
                     ProbeError::Failed(format!("attaching to {function}: {m}"))
                 }
@@ -136,9 +152,14 @@ fn classify(error: impl std::error::Error) -> ProbeError {
         text.push_str(&s.to_string());
         source = s.source();
     }
-    if text.contains("Operation not permitted")
-        || text.contains("Permission denied")
-        || text.contains("EPERM")
+    // As root, EACCES/EPERM come from the kernel (the verifier, a policy): say what it said.
+    #[allow(unsafe_code)]
+    // SAFETY: geteuid has no preconditions.
+    let root = unsafe { libc::geteuid() } == 0;
+    if !root
+        && (text.contains("Operation not permitted")
+            || text.contains("Permission denied")
+            || text.contains("EPERM"))
     {
         ProbeError::PermissionDenied
     } else {

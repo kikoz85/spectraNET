@@ -224,6 +224,27 @@ int udpv6_recvmsg_exit(__u64 *ctx)
 	return 0;
 }
 
+/* Linux 7.0 dropped addr_len: int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+ * int flags), so the return value follows four arguments. Loaded when the kernel refuses the
+ * five-argument programs above (reading past its arguments). */
+SEC("fexit/udp_recvmsg")
+int udp_recvmsg_exit4(__u64 *ctx)
+{
+	int ret = (int)ctx[4];
+	if (ret > 0)
+		account((struct sock *)ctx[0], PROTO_UDP, 0, ret, (struct msghdr *)ctx[1]);
+	return 0;
+}
+
+SEC("fexit/udpv6_recvmsg")
+int udpv6_recvmsg_exit4(__u64 *ctx)
+{
+	int ret = (int)ctx[4];
+	if (ret > 0)
+		account((struct sock *)ctx[0], PROTO_UDP, 0, ret, (struct msghdr *)ctx[1]);
+	return 0;
+}
+
 SEC("fentry/inet_release")
 int inet_release_entry(__u64 *ctx)
 {

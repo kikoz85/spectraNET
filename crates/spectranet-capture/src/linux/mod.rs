@@ -5,6 +5,7 @@
 //! socket is identified by its kernel address *and* the time it was first seen, so a new
 //! socket reusing a closed one's memory never inherits its counters.
 
+pub(crate) mod btf;
 pub(crate) mod destroy;
 mod diag;
 #[allow(unsafe_code)]
