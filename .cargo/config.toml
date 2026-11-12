@@ -1,0 +1,5 @@
+# Windows: link the C runtime statically, so the executables don't need the Visual C++
+# Redistributable (VCRUNTIME140.dll) — required by the Microsoft Store (policy 10.2.4.1)
+# and for the installer on PCs without it.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
